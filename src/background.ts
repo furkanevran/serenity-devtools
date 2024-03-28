@@ -1,2 +1,1 @@
-import browser from "webextension-polyfill";
-
+import "webext-bridge/background";

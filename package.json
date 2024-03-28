@@ -8,8 +8,8 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "watch": "parcel watch src/manifest.json --host localhost --port 3210 --no-content-hash --dist-dir dist --detailed-report 10",
-    "build": "parcel build src/manifest.json --no-content-hash --no-source-maps --dist-dir dist --no-cache --detailed-report 10",
+    "watch": "parcel watch src/manifest.json --host localhost --port 3210 --no-content-hash --dist-dir dist",
+    "build": "parcel build src/manifest.json --no-content-hash --no-source-maps --dist-dir dist --no-cache",
     "lint": "eslint --cache .",
     "prettier": "prettier --write .",
     "postinstall": "simple-git-hooks",
@@ -32,6 +32,7 @@
     "typescript": "^5.4.3",
     "typescript-eslint": "^7.4.0",
     "web-ext": "^7.11.0",
+    "webext-bridge": "^6.0.1",
     "webextension-polyfill": "^0.10.0"
   }
 }
