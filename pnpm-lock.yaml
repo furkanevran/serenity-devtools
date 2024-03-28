@@ -8,9 +8,15 @@ devDependencies:
   '@parcel/config-webextension':
     specifier: ^2.12.0
     version: 2.12.0(@parcel/core@2.12.0)(typescript@5.4.3)
+  '@parcel/validator-typescript':
+    specifier: ^2.12.0
+    version: 2.12.0(@parcel/core@2.12.0)(typescript@5.4.3)
   '@types/webextension-polyfill':
     specifier: ^0.10.7
     version: 0.10.7
+  buffer:
+    specifier: ^5.5.0||^6.0.0
+    version: 6.0.3
   eslint:
     specifier: ^8.57.0
     version: 8.57.0
@@ -1078,6 +1084,16 @@ packages:
       - '@swc/helpers'
     dev: true
 
+  /@parcel/ts-utils@2.12.0(typescript@5.4.3):
+    resolution: {integrity: sha512-zou+W6dcqnXXUOfN5zGM+ePIWbYOhGp8bVB2jICoNkoKmNAHd4l4zeHl5yQXnbZfynVw88cZVqxtXS8tYebelg==}
+    engines: {node: '>= 12.0.0'}
+    peerDependencies:
+      typescript: '>=3.0.0'
+    dependencies:
+      nullthrows: 1.1.1
+      typescript: 5.4.3
+    dev: true
+
   /@parcel/types@2.12.0(@parcel/core@2.12.0):
     resolution: {integrity: sha512-8zAFiYNCwNTQcglIObyNwKfRYQK5ELlL13GuBOrSMxueUiI5ylgsGbTS1N7J3dAGZixHO8KhHGv5a71FILn9rQ==}
     dependencies:
@@ -1105,6 +1121,23 @@ packages:
       '@parcel/source-map': 2.1.1
       chalk: 4.1.2
       nullthrows: 1.1.1
+    dev: true
+
+  /@parcel/validator-typescript@2.12.0(@parcel/core@2.12.0)(typescript@5.4.3):
+    resolution: {integrity: sha512-oiAG/MA6Ycbv106KCAQAwwVKdDdpyvK8xWJ47wme726Nkc6YO/UCoHBqIFTld8+PC7QD3U0XY5Y4kavm3n+lMQ==}
+    engines: {node: '>= 12.0.0', parcel: ^2.12.0}
+    peerDependencies:
+      typescript: '>=3.0.0'
+    dependencies:
+      '@parcel/diagnostic': 2.12.0
+      '@parcel/plugin': 2.12.0(@parcel/core@2.12.0)
+      '@parcel/ts-utils': 2.12.0(typescript@5.4.3)
+      '@parcel/types': 2.12.0(@parcel/core@2.12.0)
+      '@parcel/utils': 2.12.0
+      typescript: 5.4.3
+    transitivePeerDependencies:
+      - '@parcel/core'
+      - '@swc/helpers'
     dev: true
 
   /@parcel/watcher-android-arm64@2.4.1:

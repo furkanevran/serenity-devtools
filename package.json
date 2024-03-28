@@ -14,7 +14,8 @@
     "prettier": "prettier --write .",
     "postinstall": "simple-git-hooks",
     "dev:chromium": "web-ext run --target=chromium --start-url=https://demo.serenity.is/Northwind/Order  --source-dir=./dist",
-    "dev:firefox": "web-ext run --target=firefox-desktop --start-url=https://demo.serenity.is/Northwind/Order  --source-dir=./dist"
+    "dev:firefox": "web-ext run --target=firefox-desktop --start-url=https://demo.serenity.is/Northwind/Order  --source-dir=./dist",
+    "check": "tsc --noEmit"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged"
@@ -22,9 +23,14 @@
   "lint-staged": {
     "*": "eslint --fix"
   },
+  "@parcel/resolver-default": {
+    "packageExports": true
+  },
   "devDependencies": {
     "@parcel/config-webextension": "^2.12.0",
+    "@parcel/validator-typescript": "^2.12.0",
     "@types/webextension-polyfill": "^0.10.7",
+    "buffer": "^5.5.0||^6.0.0",
     "eslint": "^8.57.0",
     "lint-staged": "^15.2.2",
     "parcel": "^2.12.0",
