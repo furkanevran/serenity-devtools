@@ -5,9 +5,9 @@ console.log('devtools.ts');
 
 browser.devtools.panels.create(
     "Serenity",
-    "devtools.png",
-    "devtools.html",
-    function (panel: any) {
+    "devtools/devtools.png",
+    "devtools/panel/panel.html",
+    function () {
         console.log('Panel created');
     }
 );

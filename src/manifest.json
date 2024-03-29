@@ -11,7 +11,7 @@
         "service_worker": "background.ts",
         "type": "module"
     },
-    "devtools_page": "devtools.html",
+    "devtools_page": "devtools/devtools.html",
     "content_scripts": [
         {
             "matches": [
@@ -23,8 +23,16 @@
             "run_at": "document_end"
         }
     ],
-    "web_accessible_resources": [{
-        "resources": ["devtools.png", "devtools.html", "devtools.js", "devtools.css"],
-        "matches": ["<all_urls>"]
-    }]
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "devtools/devtools.png",
+                "devtools/devtools.html",
+                "devtools/panel/panel.html"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ]
 }
