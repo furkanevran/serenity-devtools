@@ -73,10 +73,11 @@ const init = async () => {
             widgetElement.style.paddingLeft = `${level * 10}px`;
             widgetElement.innerHTML = `<h1>${widget.widgetName} ${widget.name ?? ''}</h1>`;
             widgetElement.addEventListener('click', () => {
-                devtoolsPanelConnection.postMessage({
-                    name: 'inspect',
-                    selector: widget.widgetData.domNodeSelector,
-                });
+                // devtoolsPanelConnection.postMessage({
+                //     name: 'inspect',
+                //     selector: widget.widgetData.domNodeSelector,
+                // });
+                devtools.inspectedWindow.eval(`inspect($$('${widget.widgetData.domNodeSelector}')[0])`);
             });
             document.body.appendChild(widgetElement);
 

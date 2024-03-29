@@ -13,36 +13,47 @@ if (Serenity) {
 
         console.log('window-script.ts', event.data);
 
-        if (event.data.name === 'inspect') {
-            const selector = event.data?.selector;
-            if (!selector) {
-                return;
-            }
+        // if (event.data.name === 'inspect') {
+        //     const selector = event.data?.selector;
+        //     if (!selector) {
+        //         return;
+        //     }
 
-            const element = document.querySelector(selector);
-            if (!element) {
-                return;
-            }
+        //     const element = document.querySelector(selector);
+        //     if (!element) {
+        //         return;
+        //     }
 
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            element.style.outline = '2px solid red';
-        }
+        //     element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        //     element.style.outline = '2px solid red';
+        // }
 
         console.log('window-script.ts', event.data);
     });
+
+    const getElSelector = (el: HTMLElement) => {
+        let selector = el.tagName.toLowerCase();
+        if (el.id) {
+            selector += `#${el.id}`;
+        } else if (el.classList.length) {
+            selector += `.${Array.from(el.classList).join('.')}`;
+        }
+
+        const name = el.getAttribute('name');
+        if (name) {
+            selector += `[name="${name}"]`;
+        }
+
+        return selector;
+    };
 
     function getCircularReplacer() {
         const ancestors: any = [];
         return function (key: string, value: any) {
             if (value instanceof Node) {
-                let val = "[DOM Node]";
+                const val = "[DOM Node]";
                 if (value instanceof HTMLElement) {
-                    if (value.id) {
-                        val += `#${value.id}`;
-                    }
-                    else if (value.classList.length) {
-                        val += `.${Array.from(value.classList).join('.')}`;
-                    }
+                    return val+`<${getElSelector(value)}>`;
                 }
 
                 return val;
@@ -91,7 +102,7 @@ if (Serenity) {
                     if (widget) {
                         const widgetName: string = Serenity.getTypeFullName(Serenity.getInstanceType(widget));
                         const widgetData = JSON.parse(JSON.stringify(widget, getCircularReplacer()));
-                        widgetData.domNodeSelector = `#${widget.uniqueName}`;
+                        widgetData.domNodeSelector = getElSelector(node);
                         currentWidgetData = {
                             widgetData,
                             widgetName,
