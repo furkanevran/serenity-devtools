@@ -74,13 +74,3 @@ runtime.onInstalled.addListener(async () => {
 })();
 
 console.log('panel.ts');
-// (async () => {
-//     const hasSerenity = await sendMessage("hasSerenity", false);
-//     console.log('hasSerenity', hasSerenity);
-
-//     if (hasSerenity) {
-//         document.body.innerHTML = "<h1>Serenity is present</h1>";
-//     } else {
-//         document.body.innerHTML = "<h1>Serenity is not present</h1>";
-//     }
-// })();

@@ -34,8 +34,7 @@ const connections = new Map<number, Runtime.Port[]>(); // per tabId
 
     browser.runtime.onConnect.addListener((port) => {
         const extensionListener = (message: any, port: Runtime.Port) => {
-            const tabId = message.tabId ?? activeTabId;
-
+            const tabId = message.tabId ?? port.sender?.tab?.id ?? activeTabId;
             if (message.name === "init") {
                 connections.set(tabId, [...(connections.get(tabId) || []), port]);
                 return;

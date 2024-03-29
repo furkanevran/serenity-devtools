@@ -1,6 +1,5 @@
 console.log('window-script.ts', typeof (globalThis as any)["Serenity"]);
 
-// postmessage
 window.postMessage({
     name: 'init',
     namespace: 'com.serenity.devtools',
