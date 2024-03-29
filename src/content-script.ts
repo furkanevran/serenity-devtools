@@ -1,5 +1,7 @@
-import browser from "webextension-polyfill";
 import page from "url:./page.ts";
+import { allowWindowMessaging } from "webext-bridge/content-script"
+
+allowWindowMessaging("Serenity.DevTools");
 
 console.log('content-script.ts');
 
