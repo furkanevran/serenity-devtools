@@ -1,6 +1,4 @@
-import { setNamespace } from "webext-bridge/window";
-setNamespace("Serenity.DevTools");
-
+console.log('window-script.ts', typeof (globalThis as any)["Serenity"]);
 // onMessage("hasSerenity", async () => {
 //     console.log('hasSerenity');
 //     return typeof (window as any).Serenity !== "undefined";
@@ -9,5 +7,3 @@ setNamespace("Serenity.DevTools");
 // setInterval(() => {
 //     sendMessage("hasSerenity", typeof (window as any).Serenity !== "undefined");
 // }, 100);
-
-console.log('page.ts');

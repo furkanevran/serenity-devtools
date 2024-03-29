@@ -40,7 +40,6 @@
     "typescript": "^5.4.3",
     "typescript-eslint": "^7.4.0",
     "web-ext": "^7.11.0",
-    "webext-bridge": "^6.0.1",
     "webextension-polyfill": "^0.10.0"
   }
 }

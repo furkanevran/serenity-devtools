@@ -6,5 +6,4 @@ import browser from 'webextension-polyfill';
         "devtools/devtools.png",
         "devtools/panel/panel.html",
     );
-    console.log('devtools.ts: panel created');
 })();

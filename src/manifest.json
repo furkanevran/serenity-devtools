@@ -4,7 +4,6 @@
     "version": "0.0.1",
     "permissions": [
         "tabs",
-        "scripting",
         "http://*/*",
         "https://*/*"
     ],
@@ -22,6 +21,16 @@
                 "content-script.ts"
             ],
             "run_at": "document_end"
+        },
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "window-script.ts"
+            ],
+            "run_at": "document_end",
+            "world": "MAIN"
         }
     ],
     "web_accessible_resources": [
