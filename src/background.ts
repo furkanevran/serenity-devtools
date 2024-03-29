@@ -6,6 +6,12 @@ const connections = new Map<number, Runtime.Port[]>(); // per tabId
 (async () => {
     let activeTabId: number = (await browser.tabs.query({ active: true, currentWindow: true }))?.[0]?.id ?? 0;
     browser.tabs.onActivated.addListener((activeInfo) => {
+        connections.get(activeTabId)?.forEach((port) => {
+            port.postMessage({
+                name: 'deactivated'
+            });
+        });
+
         activeTabId = activeInfo?.tabId;
         if (!activeTabId) {
             return;

@@ -9,14 +9,15 @@ export default tseslint.config(
   {
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
-      "@typescript-eslint/no-unused-vars": [
+      '@typescript-eslint/no-unused-vars': [
         "error",
         {
           "argsIgnorePattern": "^_",
           "varsIgnorePattern": "^_",
           "caughtErrorsIgnorePattern": "^_"
-        }
-      ]
+        },
+      ],
+      'no-inner-declarations': 'off'
     }
   }
 );

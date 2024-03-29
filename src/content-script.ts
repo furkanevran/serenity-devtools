@@ -1,17 +1,16 @@
 import browser from 'webextension-polyfill';
-console.log('content-script.ts', typeof (globalThis as any)["Serenity"]);
 
-const connection = browser.runtime.connect({
-    name: 'content-script',
-});
+// const connection = browser.runtime.connect({
+//     name: 'content-script',
+// });
 
-connection.onMessage.addListener((message) => {
-    console.log('content-script message', message);
-});
+// connection.onMessage.addListener((message) => {
+//     console.log('content-script message', message);
+// });
 
-connection.postMessage({
-    name: 'init'
-});
+// connection.postMessage({
+//     name: 'init'
+// });
 
 const windowConnection = browser.runtime.connect({
     name: 'window-script',
@@ -22,7 +21,7 @@ windowConnection.postMessage({
 });
 
 windowConnection.onMessage.addListener((message) => {
-    window.postMessage({...message, namespace: 'com.serenity.devtools'}, '*');
+    window.postMessage({...message, namespace: 'com.serenity.devtools/window-script'}, '*');
 });
 
 window.addEventListener('message', async (event) => {
