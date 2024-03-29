@@ -30,28 +30,6 @@ const checkSerenity = async () => {
         }
 
         check();
-        // setTimeout(async () => {
-        //     const [serenityAvailable] = await devtools.inspectedWindow.eval(`typeof window.Serenity !== "undefined"`);
-        //     if (serenityAvailable) {
-        //         document.body.innerHTML = "<h1>Serenity is present</h1>";
-        //         hasSerenity = true;
-        //         resolve();
-        //         return;
-        //     }
-
-        //     document.body.innerHTML = "<h1>Error</h1>";
-        //     document.body.innerHTML += `<p class="text-red-600">Serenity is not present</p>`;
-        //     hasSerenity = false;
-
-        //     if (retryCount <= 0) {
-        //         resolve();
-        //         return;
-        //     }
-
-        //     retryCount--;
-        //     await checkSerenity();
-        //     resolve();
-        // }, RETRY_INTERVAL);
     });
 }
 
