@@ -36,14 +36,15 @@ const connections = new Map<number, Runtime.Port[]>(); // per tabId
         const extensionListener = (message: any, port: Runtime.Port) => {
             const tabId = message.tabId ?? activeTabId;
 
-            if (message.name === "init")
+            if (message.name === "init") {
                 connections.set(tabId, [...(connections.get(tabId) || []), port]);
+                return;
+            }
 
             if (message.name === "ping") {
                 port.postMessage({
                     name: 'pong',
                 });
-
                 return;
             }
 
