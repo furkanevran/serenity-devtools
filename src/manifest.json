@@ -4,8 +4,12 @@
     "version": "0.0.1",
     "permissions": [
         "tabs",
+        "scripting",
         "http://*/*",
         "https://*/*"
+    ],
+    "host_permissions": [
+        "<all_urls>"
     ],
     "background": {
         "service_worker": "background.ts",

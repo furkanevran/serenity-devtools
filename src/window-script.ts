@@ -1,9 +1,15 @@
 console.log('window-script.ts', typeof (globalThis as any)["Serenity"]);
-// onMessage("hasSerenity", async () => {
-//     console.log('hasSerenity');
-//     return typeof (window as any).Serenity !== "undefined";
-// });
 
-// setInterval(() => {
-//     sendMessage("hasSerenity", typeof (window as any).Serenity !== "undefined");
-// }, 100);
+// postmessage
+window.postMessage({
+    name: 'init',
+    namespace: 'com.serenity.devtools',
+});
+
+
+setInterval(() => {
+    window.postMessage({
+        name: 'test',
+        namespace: 'com.serenity.devtools',
+    });
+}, 1000);
