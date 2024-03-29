@@ -13,23 +13,22 @@ connection.postMessage({
     name: 'init'
 });
 
-connection.postMessage({
-    name: 'ping'
+const windowConnection = browser.runtime.connect({
+    name: 'window-script',
 });
 
-connection.postMessage({
-    name: 'my-active-tab-id'
+windowConnection.postMessage({
+    name: 'init'
 });
 
-connection.postMessage({
-    name: 'listener-count'
+windowConnection.onMessage.addListener((message) => {
+    window.postMessage({...message, namespace: 'com.serenity.devtools'}, '*');
 });
-
 
 window.addEventListener('message', async (event) => {
     if (event.source !== window || event.data?.namespace !== 'com.serenity.devtools') {
         return;
     }
 
-    connection.postMessage(event.data);
+    windowConnection.postMessage(event.data);
 });

@@ -1,14 +1,18 @@
-console.log('window-script.ts', typeof (globalThis as any)["Serenity"]);
+const Serenity = (globalThis as any)["Serenity"];
+console.log('window-script.ts', typeof Serenity);
 
-window.postMessage({
-    name: 'init',
-    namespace: 'com.serenity.devtools',
-});
-
-
-setInterval(() => {
+if (Serenity) {
     window.postMessage({
-        name: 'test',
+        name: 'init',
         namespace: 'com.serenity.devtools',
     });
-}, 1000);
+
+    window.addEventListener('message', (event) => {
+        if (event.source !== window || event.data?.namespace !== 'com.serenity.devtools') {
+            return;
+        }
+
+        console.log('window-script.ts', event.data);
+    });
+}
+
