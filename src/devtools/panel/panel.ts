@@ -1,4 +1,5 @@
 import { devtools, runtime } from 'webextension-polyfill';
+import { JsonViewer } from './json-viewer';
 
 const RETRY_INTERVAL = 300;
 let retryCount = 10;
@@ -39,6 +40,57 @@ type Widget = {
     children: Widget[];
 }
 
+const escapeHtml = (unsafe: string) => {
+    return unsafe.replace(/[&<"']/g, (m) => {
+        m === "&" && (m = "&amp;");
+        m === "<" && (m = "&lt;");
+        m === '"' && (m = "&quot;");
+        m === "'" && (m = "&#039;");
+        return m;
+    });
+}
+
+const unescapeHtml = (safe: string) => {
+    return safe.replace(/&amp;|&lt;|&quot;|&#039;/g, (m) => {
+        m === "&amp;" && (m = "&");
+        m === "&lt;" && (m = "<");
+        m === "&quot;" && (m = '"');
+        m === "&#039;" && (m = "'");
+        return m;
+    });
+};
+
+let selectedDomSelector: string | null = null;
+let data: Widget[] = [];
+const jsonViewer = new JsonViewer();
+
+document.body.addEventListener('click', (event) => {
+    if (!(event.target instanceof HTMLElement)) {
+        return;
+    }
+
+    const targetDiv = event.target.closest<HTMLElement>('[data-dom-selector]');
+    if (!targetDiv) {
+        return;
+    }
+
+    const domSelector = targetDiv.getAttribute('data-dom-selector');
+    if (!domSelector) {
+        return;
+    }
+
+    if (event.target.classList.contains('inspect-button')) {
+        devtools.inspectedWindow.eval(`inspect($$('${unescapeHtml(domSelector)}')[0])`);
+        return;
+    }
+
+    if (targetDiv.classList.contains('left-part')) {
+        selectedDomSelector = domSelector;
+        jsonViewer.expandedPaths = [];
+        jsonViewer.setData(["Loading..."]);
+    }
+});
+
 const init = async () => {
     retryCount = 10;
     await checkSerenity();
@@ -61,30 +113,48 @@ const init = async () => {
     });
 
     setInterval(async () => {
-        document.body.innerHTML = '';
-        const data: Widget[] = JSON.parse((await devtools.inspectedWindow.eval(`window.__SERENITY_DEVTOOLS__.getWidgets()`)) as unknown as string);
-        const queue: { widget: Widget, level: number }[] = data.map((widget) => ({ widget: widget, level: 1 }));
+        data = JSON.parse((await devtools.inspectedWindow.eval(`window.__SERENITY_DEVTOOLS__.getWidgets()`)) as unknown as string);
+        const stack: { widget: Widget, level: number }[] = data.map((widget) => ({ widget: widget, level: 1 }));
 
-        while (queue.length) {
-            const { widget, level } = queue.shift()!;
+        let newHtml = `<div class="grid grid-cols-2 gap-4"><div class="border p-2 m-2 overflow-auto" style="padding-left: 0px;">`;
+        let selectedWidget: Widget | null = null;
 
-            const widgetElement = document.createElement('div');
-            widgetElement.className = 'border p-2 m-2';
-            widgetElement.style.paddingLeft = `${level * 10}px`;
-            widgetElement.innerHTML = `<h1>${widget.widgetName} ${widget.name ?? ''}</h1>`;
-            widgetElement.addEventListener('click', () => {
-                // devtoolsPanelConnection.postMessage({
-                //     name: 'inspect',
-                //     selector: widget.widgetData.domNodeSelector,
-                // });
-                devtools.inspectedWindow.eval(`inspect($$('${widget.widgetData.domNodeSelector}')[0])`);
-            });
-            document.body.appendChild(widgetElement);
+        while (stack.length) {
+            const { widget, level } = stack.shift()!;
 
-            widget.children?.forEach((child) => {
-                queue.push({ widget: child, level: level + 1 });
+            newHtml += `<div class="border p-2 m-2 left-part" style="padding-left: ${level * 30}px;" data-dom-selector="${escapeHtml(widget.widgetData.domNodeSelector)}">`;
+            newHtml += `<h1>${escapeHtml(widget.widgetName)} ${escapeHtml(widget.name ?? '')}</h1>`;
+            newHtml += `<p>${escapeHtml(widget.widgetData.domNodeSelector)}</p>`;
+            newHtml += `<button class="inspect-button">Inspect</button>`;
+            newHtml += "</div>";
+
+            if (widget.widgetData.domNodeSelector === selectedDomSelector) {
+                selectedWidget = widget;
+            }
+
+            widget.children?.toReversed().forEach((child) => {
+                stack.unshift({ widget: child, level: level + 1 });
             });
         }
+
+        newHtml += "</div>";
+
+        if (selectedWidget) {
+            newHtml += `<div class="border p-2 m-2 ps-0" data-dom-selector="${escapeHtml(selectedWidget.widgetData.domNodeSelector)}">`;
+            newHtml += `<div class="sticky top-0 overflow-hidden">`;
+            newHtml += `<h1>${escapeHtml(selectedWidget.widgetName)} ${escapeHtml(selectedWidget.name ?? '')}</h1>`;
+            newHtml += `<button class="inspect-button">Inspect</button>`;
+            newHtml += `<div id="json-viewer" class="border p-2 m-2 overflow-auto"></div>`;
+            jsonViewer.setRoot(null);
+            jsonViewer.setData(selectedWidget.widgetData);
+            newHtml += "</div></div>";
+        }
+
+        newHtml += "</div>";
+
+        document.body.innerHTML = newHtml;
+        const jsonViewerDiv = document.getElementById('json-viewer');
+        jsonViewer.setRoot(jsonViewerDiv);
     }, 1000);
 }
 

@@ -59,6 +59,14 @@ if (Serenity) {
                 return val;
             }
 
+            if (value instanceof Window) {
+                return "[Window]";
+            }
+
+            if (typeof value === "function") {
+                return value.toString();
+            }
+
             if (typeof value !== "object" || value === null) {
                 return value;
             }
@@ -103,11 +111,23 @@ if (Serenity) {
                         const widgetName: string = Serenity.getTypeFullName(Serenity.getInstanceType(widget));
                         const widgetData = JSON.parse(JSON.stringify(widget, getCircularReplacer()));
                         widgetData.domNodeSelector = getElSelector(node);
+                        if (widget["value"]) {
+                            widgetData.value = JSON.parse(JSON.stringify(widget["value"], getCircularReplacer()));
+                        }
+
+                        if (widget["selectedItem"]) {
+                            widgetData.selectedItem = JSON.parse(JSON.stringify(widget["selectedItem"], getCircularReplacer()));
+                        }
+
+                        if (widget["selectedItems"]) {
+                            widgetData.selectedItems = JSON.parse(JSON.stringify(widget["selectedItems"], getCircularReplacer()));
+                        }
+
                         currentWidgetData = {
                             widgetData,
                             widgetName,
                             name: widget.domNode.name,
-                            children: [],
+                            children: []
                         };
                         if (parentWidget) {
                             parentWidget.children.push(currentWidgetData);
