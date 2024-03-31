@@ -61,7 +61,7 @@ export class JsonViewer {
     }
 
     public getArrayMarkup(data: any[], path: string): string {
-        let markup = '<ul class="list-disc pl-4">';
+        let markup = '<ul class="list-none pl-4">';
         data.forEach((item, index) => {
             const itemPath = `${path}[${index}]`;
             markup += `<li>${this.getMarkup(item, itemPath)}</li>`;
@@ -76,7 +76,7 @@ export class JsonViewer {
             return '<span>{}</span>';
         }
 
-        let markup = '<ul class="list-disc pl-4">';
+        let markup = '<ul class="list-none pl-4">';
         for (const key in data) {
             const itemPath = `${path}.${key}`;
 
@@ -103,7 +103,7 @@ export class JsonViewer {
     }
 
     getCollapsedObjectMarkup(data: any, path: string): string {
-        let markup = '<ul class="list-disc pl-4">';
+        let markup = '<ul class="list-none pl-4">';
         for (const key in data) {
             const itemPath = `${path}.${key}`;
             markup += `<li><span>${key}</span>: { <button class="text-blue-300 expand-button" data-path="${itemPath}">+ Expand </button> }</li>`;
@@ -113,7 +113,7 @@ export class JsonViewer {
     }
 
     getExpandedObjectMarkup(data: any, path: string): string {
-        let markup = '<ul class="list-disc pl-4">';
+        let markup = '<ul class="list-none pl-4">';
         for (const key in data) {
             const itemPath = `${path}.${key}`;
             markup += `<li><span>${key}</span>: ${this.getMarkup(data[key], itemPath)}</li>`;

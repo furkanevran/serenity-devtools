@@ -64,6 +64,16 @@ let selectedDomSelector: string | null = null;
 let data: Widget[] = [];
 const jsonViewer = new JsonViewer();
 
+const devtoolsPanelConnection = runtime.connect({
+    name: 'panel',
+});
+
+
+devtoolsPanelConnection.postMessage({
+    name: 'init',
+    tabId: devtools.inspectedWindow.tabId,
+});
+
 document.body.addEventListener('click', (event) => {
     if (!(event.target instanceof HTMLElement)) {
         return;
@@ -84,6 +94,15 @@ document.body.addEventListener('click', (event) => {
         return;
     }
 
+    if (event.target.classList.contains('save-as-temp-variable-button')) {
+        console.log('save-as-temp-variable-button', domSelector);
+        devtoolsPanelConnection.postMessage({
+            name: 'saveAsTempVariable',
+            domSelector: domSelector,
+        });
+        return;
+    }
+
     if (targetDiv.classList.contains('left-part')) {
         selectedDomSelector = domSelector;
         jsonViewer.expandedPaths = [];
@@ -91,26 +110,14 @@ document.body.addEventListener('click', (event) => {
     }
 });
 
+
+
 const init = async () => {
     retryCount = 10;
     await checkSerenity();
     if (!hasSerenity) {
         return;
     }
-
-    const devtoolsPanelConnection = runtime.connect({
-        name: 'panel',
-    });
-
-    devtoolsPanelConnection.onMessage.addListener((message) => {
-        console.log('panel message', message);
-        document.body.innerHTML += `<h1>${JSON.stringify(message)}</h1>`;
-    });
-
-    devtoolsPanelConnection.postMessage({
-        name: 'init',
-        tabId: devtools.inspectedWindow.tabId,
-    });
 
     setInterval(async () => {
         data = JSON.parse((await devtools.inspectedWindow.eval(`window.__SERENITY_DEVTOOLS__.getWidgets()`)) as unknown as string);
@@ -121,16 +128,16 @@ const init = async () => {
 
         while (stack.length) {
             const { widget, level } = stack.shift()!;
+            const isSelected = widget.widgetData.domNodeSelector === selectedDomSelector;
+            if (isSelected) {
+                selectedWidget = widget;
+            }
 
-            newHtml += `<div class="border p-2 m-2 left-part" style="padding-left: ${level * 30}px;" data-dom-selector="${escapeHtml(widget.widgetData.domNodeSelector)}">`;
+            newHtml += `<div class="border p-2 m-2 left-part${isSelected ? ' bg-blue-950' : ''}" style="padding-left: ${level * 30}px;" data-dom-selector="${escapeHtml(widget.widgetData.domNodeSelector)}">`;
             newHtml += `<h1>${escapeHtml(widget.widgetName)} ${escapeHtml(widget.name ?? '')}</h1>`;
             newHtml += `<p>${escapeHtml(widget.widgetData.domNodeSelector)}</p>`;
             newHtml += `<button class="inspect-button">Inspect</button>`;
             newHtml += "</div>";
-
-            if (widget.widgetData.domNodeSelector === selectedDomSelector) {
-                selectedWidget = widget;
-            }
 
             widget.children?.toReversed().forEach((child) => {
                 stack.unshift({ widget: child, level: level + 1 });
@@ -140,10 +147,11 @@ const init = async () => {
         newHtml += "</div>";
 
         if (selectedWidget) {
-            newHtml += `<div class="border p-2 m-2 ps-0" data-dom-selector="${escapeHtml(selectedWidget.widgetData.domNodeSelector)}">`;
+            newHtml += `<div class="border p-2 m-2 ps-0 data-dom-selector="${escapeHtml(selectedWidget.widgetData.domNodeSelector)}">`;
             newHtml += `<div class="sticky top-0 overflow-hidden">`;
             newHtml += `<h1>${escapeHtml(selectedWidget.widgetName)} ${escapeHtml(selectedWidget.name ?? '')}</h1>`;
-            newHtml += `<button class="inspect-button">Inspect</button>`;
+            newHtml += `<button class="inspect-button block">Inspect</button>`;
+            newHtml += `<button class="save-as-temp-variable-button block">Save as temp variable</button>`;
             newHtml += `<div id="json-viewer" class="border p-2 m-2 overflow-auto"></div>`;
             jsonViewer.setRoot(null);
             jsonViewer.setData(selectedWidget.widgetData);
