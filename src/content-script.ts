@@ -16,10 +16,6 @@ const windowConnection = browser.runtime.connect({
     name: 'window-script',
 });
 
-windowConnection.postMessage({
-    name: 'init'
-});
-
 windowConnection.onMessage.addListener((message) => {
     window.postMessage({...message, namespace: 'com.serenity.devtools/window-script'}, '*');
 });

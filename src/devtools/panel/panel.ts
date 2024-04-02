@@ -68,12 +68,6 @@ const devtoolsPanelConnection = runtime.connect({
     name: 'panel',
 });
 
-
-devtoolsPanelConnection.postMessage({
-    name: 'init',
-    tabId: devtools.inspectedWindow.tabId,
-});
-
 document.body.addEventListener('click', (event) => {
     if (!(event.target instanceof HTMLElement)) {
         return;
@@ -95,16 +89,16 @@ document.body.addEventListener('click', (event) => {
     }
 
     if (event.target.classList.contains('save-as-temp-variable-button')) {
-        console.log('save-as-temp-variable-button', domSelector);
         devtoolsPanelConnection.postMessage({
             name: 'saveAsTempVariable',
-            domSelector: domSelector,
+            selector: unescapeHtml(domSelector)
         });
         return;
     }
 
     if (targetDiv.classList.contains('left-part')) {
         selectedDomSelector = domSelector;
+        targetDiv.classList.add('bg-blue-950');
         jsonViewer.expandedPaths = [];
         jsonViewer.setData(["Loading..."]);
     }
@@ -113,6 +107,11 @@ document.body.addEventListener('click', (event) => {
 
 
 const init = async () => {
+    devtoolsPanelConnection.postMessage({
+        name: 'init',
+        tabId: devtools.inspectedWindow.tabId,
+    });
+
     retryCount = 10;
     await checkSerenity();
     if (!hasSerenity) {
@@ -147,7 +146,7 @@ const init = async () => {
         newHtml += "</div>";
 
         if (selectedWidget) {
-            newHtml += `<div class="border p-2 m-2 ps-0 data-dom-selector="${escapeHtml(selectedWidget.widgetData.domNodeSelector)}">`;
+            newHtml += `<div class="border p-2 m-2 ps-0" data-dom-selector="${escapeHtml(selectedWidget.widgetData.domNodeSelector)}">`;
             newHtml += `<div class="sticky top-0 overflow-hidden">`;
             newHtml += `<h1>${escapeHtml(selectedWidget.widgetName)} ${escapeHtml(selectedWidget.name ?? '')}</h1>`;
             newHtml += `<button class="inspect-button block">Inspect</button>`;

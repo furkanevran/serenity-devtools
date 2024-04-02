@@ -13,6 +13,32 @@ if (Serenity) {
 
         console.log('window-script.ts', event.data);
 
+        if (event.data.name === "saveAsTempVariable") {
+            const selector = event.data?.selector;
+            if (!selector) {
+                return;
+            }
+
+            const element = document.querySelector(selector);
+            if (!element) {
+                return;
+            }
+
+            const tempVarValue = Serenity.tryGetWidget(element);
+            if (!tempVarValue) {
+                return;
+            }
+
+            const tempVarName = "temp";
+            let tempVarIndex = 1;
+            while ((window as any)[tempVarName + tempVarIndex]) {
+                tempVarIndex++;
+            }
+
+            (window as any)[tempVarName + tempVarIndex] = tempVarValue;
+            console.log(tempVarName + tempVarIndex, tempVarValue);
+        }
+
         // if (event.data.name === 'inspect') {
         //     const selector = event.data?.selector;
         //     if (!selector) {
@@ -27,8 +53,6 @@ if (Serenity) {
         //     element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         //     element.style.outline = '2px solid red';
         // }
-
-        console.log('window-script.ts', event.data);
     });
 
     const getElSelector = (el: HTMLElement) => {
