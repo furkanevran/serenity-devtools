@@ -50,7 +50,11 @@ const escapeHtml = (unsafe: string) => {
     });
 }
 
-const unescapeHtml = (safe: string) => {
+const unescapeHtml = (safe: string | null) => {
+    if (!safe) {
+        return null;
+    }
+
     return safe.replace(/&amp;|&lt;|&quot;|&#039;/g, (m) => {
         m === "&amp;" && (m = "&");
         m === "&lt;" && (m = "<");
@@ -60,8 +64,8 @@ const unescapeHtml = (safe: string) => {
     });
 };
 
-let selectedDomSelector: string | null = null;
-let data: Widget[] = [];
+let selectUniqueId: string | null = null;
+const flatData: Widget[] = [];
 const jsonViewer = new JsonViewer();
 
 const devtoolsPanelConnection = runtime.connect({
@@ -73,38 +77,51 @@ document.body.addEventListener('click', (event) => {
         return;
     }
 
-    const targetDiv = event.target.closest<HTMLElement>('[data-dom-selector]');
+    const targetDiv = event.target.closest<HTMLElement>('[data-unique-name]');
     if (!targetDiv) {
         return;
     }
 
-    const domSelector = targetDiv.getAttribute('data-dom-selector');
-    if (!domSelector) {
+    const uniqueName = unescapeHtml(targetDiv.getAttribute('data-unique-name'));
+    if (!uniqueName) {
         return;
     }
+    console.log("clicked uniqueName", uniqueName);
 
     if (event.target.classList.contains('inspect-button')) {
-        devtools.inspectedWindow.eval(`inspect($$('${unescapeHtml(domSelector)}')[0])`);
+        const selectedWidget = flatData.find((widget) => widget.widgetData.uniqueName === uniqueName);
+        if (!selectedWidget)
+            return;
+
+        devtools.inspectedWindow.eval(`inspect($$('${selectedWidget.widgetData.domNodeSelector}')[0])`);
         return;
     }
 
     if (event.target.classList.contains('save-as-temp-variable-button')) {
+        const selectedWidget = flatData.find((widget) => widget.widgetData.uniqueName === uniqueName);
+        if (!selectedWidget)
+            return;
+
         devtoolsPanelConnection.postMessage({
             name: 'saveAsTempVariable',
-            selector: unescapeHtml(domSelector)
+            selector: selectedWidget.widgetData.domNodeSelector,
         });
         return;
     }
 
-    if (targetDiv.classList.contains('left-part')) {
-        selectedDomSelector = domSelector;
-        targetDiv.classList.add('bg-blue-950');
+    if (targetDiv.classList.contains('widget-item')) {
+        if (selectUniqueId) {
+            console.log("removing active class from", selectUniqueId);
+            const selectedDiv = document.querySelector(`[data-unique-name="${selectUniqueId}"]`);
+            if (selectedDiv)
+                selectedDiv.classList.remove('active');
+        }
+        selectUniqueId = uniqueName;
+        targetDiv.classList.add('active');
         jsonViewer.expandedPaths = [];
         jsonViewer.setData(["Loading..."]);
     }
 });
-
-
 
 const init = async () => {
     devtoolsPanelConnection.postMessage({
@@ -119,34 +136,45 @@ const init = async () => {
     }
 
     setInterval(async () => {
-        data = JSON.parse((await devtools.inspectedWindow.eval(`window.__SERENITY_DEVTOOLS__.getWidgets()`)) as unknown as string);
-        const stack: { widget: Widget, level: number }[] = data.map((widget) => ({ widget: widget, level: 1 }));
+        const data = JSON.parse((await devtools.inspectedWindow.eval(`window.__SERENITY_DEVTOOLS__.getWidgets()`)) as unknown as string) as Widget[];
+        const stack: { widget: Widget, level: number, activeChild: boolean, parentSelector?: string }[] = data.map((widget) =>
+            ({ widget: widget, level: 1, activeChild: false })
+        );
 
-        let newHtml = `<div class="grid grid-cols-2 gap-4"><div class="border p-2 m-2 overflow-auto" style="padding-left: 0px;">`;
+        let newHtml = `<div class="grid grid-cols-2 gap-4"><div class="overflow-auto p-2 left-part">`;
         let selectedWidget: Widget | null = null;
 
         while (stack.length) {
-            const { widget, level } = stack.shift()!;
-            const isSelected = widget.widgetData.domNodeSelector === selectedDomSelector;
+            const { widget, level, activeChild, parentSelector } = stack.shift()!;
+            const isSelected = widget.widgetData.uniqueName === selectUniqueId;
             if (isSelected) {
                 selectedWidget = widget;
             }
 
-            newHtml += `<div class="border p-2 m-2 left-part${isSelected ? ' bg-blue-950' : ''}" style="padding-left: ${level * 30}px;" data-dom-selector="${escapeHtml(widget.widgetData.domNodeSelector)}">`;
+            newHtml += `<div class="` +
+                (isSelected ? 'active ' : '') +
+                (activeChild ? 'active-child ' : '')
+                + `widget-item" style="padding-left: ${((level - 1) * 15) + 7}px;" data-unique-name="${escapeHtml(widget.widgetData.uniqueName)}">`;
             newHtml += `<h1>${escapeHtml(widget.widgetName)} ${escapeHtml(widget.name ?? '')}</h1>`;
-            newHtml += `<p>${escapeHtml(widget.widgetData.domNodeSelector)}</p>`;
-            newHtml += `<button class="inspect-button">Inspect</button>`;
             newHtml += "</div>";
 
             widget.children?.toReversed().forEach((child) => {
-                stack.unshift({ widget: child, level: level + 1 });
+                stack.unshift({ widget: child, level: level + 1, activeChild: activeChild || isSelected, parentSelector: widget.widgetData.domNodeSelector });
             });
+
+            if (flatData.some((w) => w.widgetData.domNodeSelector === widget.widgetData.domNodeSelector)) {
+                if (parentSelector) {
+                    widget.widgetData.domNodeSelector = parentSelector + " " + widget.widgetData.domNodeSelector;
+                }
+            }
+
+            flatData.push(widget);
         }
 
         newHtml += "</div>";
 
         if (selectedWidget) {
-            newHtml += `<div class="border p-2 m-2 ps-0" data-dom-selector="${escapeHtml(selectedWidget.widgetData.domNodeSelector)}">`;
+            newHtml += `<div class="border p-2 m-2 ps-0" data-unique-name="${escapeHtml(selectedWidget.widgetData.uniqueName)}">`;
             newHtml += `<div class="sticky top-0 overflow-hidden">`;
             newHtml += `<h1>${escapeHtml(selectedWidget.widgetName)} ${escapeHtml(selectedWidget.name ?? '')}</h1>`;
             newHtml += `<button class="inspect-button block">Inspect</button>`;

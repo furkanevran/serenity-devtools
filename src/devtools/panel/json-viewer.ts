@@ -51,9 +51,9 @@ export class JsonViewer {
     public getMarkup(data: any, path: string = ''): string {
         if (typeof data === 'object' && data !== null) {
             if (Array.isArray(data)) {
-                return this.getArrayMarkup(data, path);
+                return "[" + this.getArrayMarkup(data, path) + "]";
             } else {
-                return this.getObjectMarkup(data, path);
+                return "{" + this.getObjectMarkup(data, path) + "}";
             }
         } else {
             return this.getPrimitiveMarkup(data, path);
@@ -64,7 +64,7 @@ export class JsonViewer {
         let markup = '<ul class="list-none pl-4">';
         data.forEach((item, index) => {
             const itemPath = `${path}[${index}]`;
-            markup += `<li>${this.getMarkup(item, itemPath)}</li>`;
+            markup += `<li class="mb-2">[${index}]: ${this.getMarkup(item, itemPath)}</li>`;
         });
         markup += '</ul>';
         return markup;
@@ -85,9 +85,9 @@ export class JsonViewer {
                     markup += `<li><span>${key}</span>: {}</li>`;
                 else
                     if (!this.expandedPaths.includes(itemPath))
-                        markup += `<li><span>${key}</span>: { <button class="text-blue-300 toggle-button" data-path="${itemPath}">+ Expand </button> }</li>`;
+                        markup += `<li><span>${key}</span>: <button class="text-blue-300 toggle-button" data-path="${itemPath}">+ Expand </button></li>`;
                     else
-                        markup += `<li><span>${key}</span>: { <button class="text-blue-300 toggle-button" data-path="${itemPath}">- Collapse </button>\n ${this.getMarkup(data[key], itemPath)} \n}</li>`;
+                        markup += `<li><span>${key}</span>: <button class="text-blue-300 toggle-button" data-path="${itemPath}">- Collapse </button>\n ${this.getMarkup(data[key], itemPath)}</li>`;
             }
             else
                 markup += `<li><span>${key}</span>: ${this.getMarkup(data[key], itemPath)}</li>`;
@@ -106,7 +106,7 @@ export class JsonViewer {
         let markup = '<ul class="list-none pl-4">';
         for (const key in data) {
             const itemPath = `${path}.${key}`;
-            markup += `<li><span>${key}</span>: { <button class="text-blue-300 expand-button" data-path="${itemPath}">+ Expand </button> }</li>`;
+            markup += `<li><span>${key}</span>: <button class="text-blue-300 expand-button" data-path="${itemPath}">+ Expand </button></li>`;
         }
         markup += '</ul>';
         return markup;
