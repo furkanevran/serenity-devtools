@@ -6,6 +6,87 @@ if (Serenity) {
         namespace: 'com.serenity.devtools',
     });
 
+    const highlightElement = document.createElement('div');
+    highlightElement.style.position = 'absolute';
+    highlightElement.style.backgroundColor = 'rgba(0, 0, 255, 0.3)';
+    highlightElement.style.zIndex = '999999999';
+    highlightElement.style.pointerEvents = 'none';
+
+    let hoveredUniqueName: string | null = null;
+
+    const tryFindWidget = (el: HTMLElement) => {
+        let widget = Serenity.tryGetWidget(el);
+
+        if (!widget) {
+            let parent = el.parentElement;
+            while (parent && !widget) {
+                const children = Array.from(parent.children).filter(c => c instanceof HTMLElement);
+                widget = children.map(x => Serenity.tryGetWidget(x as HTMLElement)).find(x => x);
+                parent = parent.parentElement;
+            }
+        }
+
+        return widget;
+    }
+
+    const inpsectMouseOver = (e?: MouseEvent) => {
+        if (!(e?.target instanceof HTMLElement)) {
+            return;
+        }
+
+        hoveredUniqueName = null;
+        const target = e.target;
+        const widget = tryFindWidget(target);
+        if (widget) {
+            let widgetEl = widget.getGridField().el?.querySelector('.editor') ?? widget.element.el;
+            if (!widgetEl) {
+                return;
+            }
+
+            if (widgetEl.classList.contains('select2-offscreen')) {
+                widgetEl = widgetEl.parentElement;
+            }
+
+            const rect = widgetEl.getBoundingClientRect();
+            highlightElement.style.top = `${rect.top}px`;
+            highlightElement.style.left = `${rect.left}px`;
+            highlightElement.style.width = `${rect.width}px`;
+            highlightElement.style.height = `${rect.height}px`;
+
+            hoveredUniqueName = widget.uniqueName;
+            document.body.appendChild(highlightElement);
+        }
+    };
+
+    const inpsectMouseOut = () => {
+        if (highlightElement.ownerDocument === document)
+            document.body.removeChild(highlightElement);
+        hoveredUniqueName = null;
+    };
+
+    const inspectClick = (e?: MouseEvent) => {
+        if (hoveredUniqueName) {
+            window.postMessage({
+                name: 'inspected',
+                namespace: 'com.serenity.devtools',
+                uniqueName: hoveredUniqueName,
+            });
+
+            document.removeEventListener('mouseover', inpsectMouseOver);
+            document.removeEventListener('mouseout', inpsectMouseOut);
+            document.removeEventListener('mousedown', inspectClick);
+            if (highlightElement.ownerDocument === document)
+                document.body.removeChild(highlightElement);
+
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            }
+        }
+    };
+
+
     window.addEventListener('message', (event) => {
         if (event.source !== window || event.data?.namespace !== 'com.serenity.devtools/window-script') {
             return;
@@ -39,20 +120,60 @@ if (Serenity) {
             console.log(tempVarName + tempVarIndex, tempVarValue);
         }
 
-        // if (event.data.name === 'inspect') {
-        //     const selector = event.data?.selector;
-        //     if (!selector) {
-        //         return;
-        //     }
+        if (event.data.name === 'highlight') {
+            const selector = event.data?.selector;
+            if (!selector) {
+                return;
+            }
 
-        //     const element = document.querySelector(selector);
-        //     if (!element) {
-        //         return;
-        //     }
+            const element = document.querySelector(selector);
+            if (!element) {
+                return;
+            }
 
-        //     element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        //     element.style.outline = '2px solid red';
-        // }
+            const widget = Serenity.tryGetWidget(element);
+            if (!widget) {
+                return;
+            }
+
+            let widgetEl = widget.getGridField().el?.querySelector('.editor') ?? widget.element.el;
+            if (!widgetEl) {
+                return;
+            }
+
+            if (widgetEl.classList.contains('select2-offscreen')) {
+                widgetEl = widgetEl.parentElement;
+            }
+
+            const rect = widgetEl.getBoundingClientRect();
+            highlightElement.style.top = `${rect.top}px`;
+            highlightElement.style.left = `${rect.left}px`;
+            highlightElement.style.width = `${rect.width}px`;
+            highlightElement.style.height = `${rect.height}px`;
+
+            document.body.appendChild(highlightElement);
+
+            document.body.addEventListener('mousemove', () => {
+                document.body.removeChild(highlightElement);
+            }, { once: true });
+        }
+
+        if (event.data.name === 'unhighlight') {
+            if (highlightElement.ownerDocument === document)
+                document.body.removeChild(highlightElement);
+        }
+
+        if (event.data.name === 'inspect') {
+            document.addEventListener('mouseover', inpsectMouseOver);
+            document.addEventListener('mouseout', inpsectMouseOut);
+            document.addEventListener('mousedown', inspectClick);
+        }
+
+        if (event.data.name === 'stopInspect') {
+            document.removeEventListener('mouseover', inpsectMouseOver);
+            document.removeEventListener('mouseout', inpsectMouseOut);
+            document.removeEventListener('mousedown', inspectClick);
+        }
     });
 
     const getElSelector = (el: HTMLElement) => {
@@ -77,7 +198,7 @@ if (Serenity) {
             if (value instanceof Node) {
                 const val = "[DOM Node]";
                 if (value instanceof HTMLElement) {
-                    return val+`<${getElSelector(value)}>`;
+                    return val + `<${getElSelector(value)}>`;
                 }
 
                 return val;

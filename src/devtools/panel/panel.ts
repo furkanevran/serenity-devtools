@@ -64,7 +64,8 @@ const unescapeHtml = (safe: string | null) => {
     });
 };
 
-let selectUniqueId: string | null = null;
+let isInspecting = false;
+let selectUniqueName: string | null = null;
 const flatData: Widget[] = [];
 const jsonViewer = new JsonViewer();
 
@@ -72,7 +73,77 @@ const devtoolsPanelConnection = runtime.connect({
     name: 'panel',
 });
 
+const findSelectedWidget = (uniqueName: string) => {
+    return flatData.find((widget) => widget.widgetData.uniqueName === uniqueName);
+}
+
 document.body.addEventListener('click', (event) => {
+    if (!(event.target instanceof HTMLElement)) {
+        return;
+    }
+
+    if (event.target.classList.contains('inspect-button')) {
+        isInspecting = true;
+        devtoolsPanelConnection.postMessage({
+            name: 'inspect'
+        });
+        return;
+    }
+
+    if (event.target.classList.contains('stop-inspect-button')) {
+        isInspecting = false;
+        devtoolsPanelConnection.postMessage({
+            name: 'stopInspect',
+        });
+        return;
+    }
+
+    const targetDiv = event.target.closest<HTMLElement>('[data-unique-name]');
+    if (!targetDiv) {
+        return;
+    }
+
+    const uniqueName = unescapeHtml(targetDiv.getAttribute('data-unique-name'));
+    if (!uniqueName) {
+        return;
+    }
+
+    if (event.target.classList.contains('inspect-button')) {
+        const selectedWidget = findSelectedWidget(uniqueName);
+        if (!selectedWidget)
+            return;
+
+        devtools.inspectedWindow.eval(`inspect($$('${selectedWidget.widgetData.domNodeSelector}')[0])`);
+        return;
+    }
+
+    if (event.target.classList.contains('save-as-temp-variable-button')) {
+        const selectedWidget = findSelectedWidget(uniqueName)
+        if (!selectedWidget)
+            return;
+
+        devtoolsPanelConnection.postMessage({
+            name: 'saveAsTempVariable',
+            selector: selectedWidget.widgetData.domNodeSelector,
+        });
+        return;
+    }
+
+    if (targetDiv.classList.contains('widget-item')) {
+        if (selectUniqueName) {
+            console.log("removing active class from", selectUniqueName);
+            const selectedDiv = document.querySelector(`[data-unique-name="${selectUniqueName}"]`);
+            if (selectedDiv)
+                selectedDiv.classList.remove('active');
+        }
+        selectUniqueName = uniqueName;
+        targetDiv.classList.add('active');
+        jsonViewer.expandedPaths = [];
+        jsonViewer.setData(["Loading..."]);
+    }
+});
+
+document.addEventListener('mouseover', (event) => {
     if (!(event.target instanceof HTMLElement)) {
         return;
     }
@@ -86,42 +157,43 @@ document.body.addEventListener('click', (event) => {
     if (!uniqueName) {
         return;
     }
-    console.log("clicked uniqueName", uniqueName);
 
-    if (event.target.classList.contains('inspect-button')) {
-        const selectedWidget = flatData.find((widget) => widget.widgetData.uniqueName === uniqueName);
-        if (!selectedWidget)
-            return;
-
-        devtools.inspectedWindow.eval(`inspect($$('${selectedWidget.widgetData.domNodeSelector}')[0])`);
+    const selectedWidget = flatData.find((widget) => widget.widgetData.uniqueName === uniqueName);
+    if (!selectedWidget)
         return;
-    }
 
-    if (event.target.classList.contains('save-as-temp-variable-button')) {
-        const selectedWidget = flatData.find((widget) => widget.widgetData.uniqueName === uniqueName);
-        if (!selectedWidget)
-            return;
+    devtoolsPanelConnection.postMessage({
+        name: 'highlight',
+        selector: selectedWidget.widgetData.domNodeSelector,
+    });
+
+    event.stopPropagation();
+
+    const unhighlight = (e?: MouseEvent) => {
+        if (e?.target instanceof HTMLElement) {
+            const targetDiv = e.target.closest<HTMLElement>(`[data-unique-name="${escapeHtml(uniqueName)}"]`);
+            if (targetDiv) {
+                return;
+            }
+        }
 
         devtoolsPanelConnection.postMessage({
-            name: 'saveAsTempVariable',
-            selector: selectedWidget.widgetData.domNodeSelector,
+            name: 'unhighlight',
         });
-        return;
+
+        document.removeEventListener('mouseout', unhighlight);
     }
 
-    if (targetDiv.classList.contains('widget-item')) {
-        if (selectUniqueId) {
-            console.log("removing active class from", selectUniqueId);
-            const selectedDiv = document.querySelector(`[data-unique-name="${selectUniqueId}"]`);
-            if (selectedDiv)
-                selectedDiv.classList.remove('active');
-        }
-        selectUniqueId = uniqueName;
-        targetDiv.classList.add('active');
-        jsonViewer.expandedPaths = [];
-        jsonViewer.setData(["Loading..."]);
+    document.addEventListener('mouseout', unhighlight);
+});
+
+devtoolsPanelConnection.onMessage.addListener((message) => {
+    if (message.name === 'inspected') {
+        isInspecting = false;
+        selectUniqueName = message.uniqueName;
     }
 });
+
 
 const init = async () => {
     devtoolsPanelConnection.postMessage({
@@ -141,12 +213,13 @@ const init = async () => {
             ({ widget: widget, level: 1, activeChild: false })
         );
 
-        let newHtml = `<div class="grid grid-cols-2 gap-4"><div class="overflow-auto p-2 left-part">`;
+        let newHtml = `<div class="grid grid-cols-2 gap-4"><div class="overflow-auto p-2 left-part">
+        ${!isInspecting ? '<button class="inspect-button block">Inspect</button>' : '<button class="stop-inspect-button block">Stop Inspecting</button>'}`;
         let selectedWidget: Widget | null = null;
 
         while (stack.length) {
             const { widget, level, activeChild, parentSelector } = stack.shift()!;
-            const isSelected = widget.widgetData.uniqueName === selectUniqueId;
+            const isSelected = widget.widgetData.uniqueName === selectUniqueName;
             if (isSelected) {
                 selectedWidget = widget;
             }
