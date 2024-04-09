@@ -108,7 +108,7 @@ document.body.addEventListener('click', (event) => {
         return;
     }
 
-    if (event.target.classList.contains('inspect-button')) {
+    if (event.target.classList.contains('highlight-button')) {
         const selectedWidget = findSelectedWidget(uniqueName);
         if (!selectedWidget)
             return;
@@ -257,7 +257,7 @@ const init = async () => {
             newHtml += `<div class="border p-2 m-2 ps-0" data-unique-name="${escapeHtml(selectedWidget.widgetData.uniqueName)}">`;
             newHtml += `<div class="sticky top-0 overflow-hidden">`;
             newHtml += `<h1>${escapeHtml(selectedWidget.widgetName)} ${escapeHtml(selectedWidget.name ?? '')}</h1>`;
-            newHtml += `<button class="inspect-button block">Inspect</button>`;
+            newHtml += `<button class="highlight-button block">Inspect</button>`;
             newHtml += `<button class="save-as-temp-variable-button block">Save as temp variable</button>`;
             newHtml += `<div id="json-viewer" class="border p-2 m-2 overflow-auto"></div>`;
             jsonViewer.setRoot(null);
