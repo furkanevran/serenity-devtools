@@ -10,13 +10,13 @@ const checkSerenity = async () => {
         const check = async () => {
             const [serenityAvailable] = await devtools.inspectedWindow.eval(`typeof window.Serenity !== "undefined"`);
             if (serenityAvailable) {
-                document.body.innerHTML = "<h1>Serenity is present</h1>";
+                document.body.innerHTML = "<h1>Serenity is present, loading widgets...</h1>";
                 hasSerenity = true;
                 resolve();
                 return;
             }
 
-            document.body.innerHTML += `<p class="text-red-600 select-none">Serenity is not present</p>`;
+            document.body.innerHTML = `<p class="text-red-600 select-none">Serenity is not present</p>`;
             hasSerenity = false;
 
             if (retryCount <= 0) {
@@ -143,7 +143,24 @@ document.body.addEventListener('click', (event) => {
     }
 });
 
-document.addEventListener('mouseover', (event) => {
+let highlightedUniqueName: string | null = null;
+const unhighlight = ((e?: MouseEvent) => {
+    if (e?.target instanceof HTMLElement && highlightedUniqueName) {
+        const targetDiv = e.target.closest<HTMLElement>(`[data-unique-name="${escapeHtml(highlightedUniqueName)}"]`);
+        if (targetDiv) {
+            return;
+        }
+    }
+
+    devtoolsPanelConnection.postMessage({
+        name: 'unhighlight',
+    });
+    highlightedUniqueName = null;
+
+    document.removeEventListener('mousemove', unhighlight);
+}).bind(this);
+
+const highlight = ((event: MouseEvent) => {
     if (!(event.target instanceof HTMLElement)) {
         return;
     }
@@ -158,10 +175,15 @@ document.addEventListener('mouseover', (event) => {
         return;
     }
 
+    if (highlightedUniqueName === uniqueName) {
+        return;
+    }
+
     const selectedWidget = flatData.find((widget) => widget.widgetData.uniqueName === uniqueName);
     if (!selectedWidget)
         return;
 
+    highlightedUniqueName = uniqueName;
     devtoolsPanelConnection.postMessage({
         name: 'highlight',
         selector: selectedWidget.widgetData.domNodeSelector,
@@ -169,23 +191,10 @@ document.addEventListener('mouseover', (event) => {
 
     event.stopPropagation();
 
-    const unhighlight = (e?: MouseEvent) => {
-        if (e?.target instanceof HTMLElement) {
-            const targetDiv = e.target.closest<HTMLElement>(`[data-unique-name="${escapeHtml(uniqueName)}"]`);
-            if (targetDiv) {
-                return;
-            }
-        }
+    document.addEventListener('mousemove', unhighlight);
+}).bind(this);
 
-        devtoolsPanelConnection.postMessage({
-            name: 'unhighlight',
-        });
-
-        document.removeEventListener('mouseout', unhighlight);
-    }
-
-    document.addEventListener('mouseout', unhighlight);
-});
+document.addEventListener('mouseover', highlight);
 
 devtoolsPanelConnection.onMessage.addListener((message) => {
     if (message.name === 'inspected') {
@@ -208,8 +217,9 @@ const init = async () => {
     }
 
     setInterval(async () => {
-        const data = JSON.parse((await devtools.inspectedWindow.eval(`window.__SERENITY_DEVTOOLS__.getWidgets()`)) as unknown as string) as Widget[];
-        const stack: { widget: Widget, level: number, activeChild: boolean, parentSelector?: string }[] = data.map((widget) =>
+        const dataString = await devtools.inspectedWindow.eval(`window.__SERENITY_DEVTOOLS__.getWidgets()`) as unknown as string;
+        const data = JSON.parse(dataString) as Widget[];
+        const stack: { widget: Widget, level: number, activeChild: boolean }[] = data.map((widget) =>
             ({ widget: widget, level: 1, activeChild: false })
         );
 
@@ -218,7 +228,7 @@ const init = async () => {
         let selectedWidget: Widget | null = null;
 
         while (stack.length) {
-            const { widget, level, activeChild, parentSelector } = stack.shift()!;
+            const { widget, level, activeChild } = stack.shift()!;
             const isSelected = widget.widgetData.uniqueName === selectUniqueName;
             if (isSelected) {
                 selectedWidget = widget;
@@ -228,18 +238,15 @@ const init = async () => {
                 (isSelected ? 'active ' : '') +
                 (activeChild ? 'active-child ' : '')
                 + `widget-item" style="padding-left: ${((level - 1) * 15) + 7}px;" data-unique-name="${escapeHtml(widget.widgetData.uniqueName)}">`;
-            newHtml += `<h1>${escapeHtml(widget.widgetName)} ${escapeHtml(widget.name ?? '')}</h1>`;
+            if (widget.name)
+                newHtml += `<h1>${escapeHtml(widget.name)} <span class="rounded-md bg-blue-800 px-1">${escapeHtml(widget.widgetName)}</span></h1>`;
+            else
+                newHtml += `<h1>${escapeHtml(widget.widgetName)}</h1>`;
             newHtml += "</div>";
 
             widget.children?.toReversed().forEach((child) => {
-                stack.unshift({ widget: child, level: level + 1, activeChild: activeChild || isSelected, parentSelector: widget.widgetData.domNodeSelector });
+                stack.unshift({ widget: child, level: level + 1, activeChild: activeChild || isSelected });
             });
-
-            if (flatData.some((w) => w.widgetData.domNodeSelector === widget.widgetData.domNodeSelector)) {
-                if (parentSelector) {
-                    widget.widgetData.domNodeSelector = parentSelector + " " + widget.widgetData.domNodeSelector;
-                }
-            }
 
             flatData.push(widget);
         }

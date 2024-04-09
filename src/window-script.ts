@@ -29,6 +29,27 @@ if (Serenity) {
         return widget;
     }
 
+    const getVisibleHighlightElement = (widget: any) => {
+        let widgetEl = widget.element.el;
+        if (widgetEl?.classList.contains('select2-offscreen')) {
+            widgetEl = widgetEl.parentElement?.querySelector('.select2-container') ?? widgetEl.parentElement;
+        }
+
+        return widgetEl;
+    }
+
+    const getHighlightElement = (selector: string) => {
+        if (!selector) {
+            return null;
+        }
+
+        if (selector.startsWith("#") && /^[>\s]+$/.test(selector.substring(1))) {
+            return document.getElementById(selector.substring(1));
+        }
+
+        return document.querySelector(selector);
+    }
+
     const inpsectMouseOver = (e?: MouseEvent) => {
         if (!(e?.target instanceof HTMLElement)) {
             return;
@@ -38,13 +59,9 @@ if (Serenity) {
         const target = e.target;
         const widget = tryFindWidget(target);
         if (widget) {
-            let widgetEl = widget.getGridField().el?.querySelector('.editor') ?? widget.element.el;
+            const widgetEl = getVisibleHighlightElement(widget);
             if (!widgetEl) {
                 return;
-            }
-
-            if (widgetEl.classList.contains('select2-offscreen')) {
-                widgetEl = widgetEl.parentElement;
             }
 
             const rect = widgetEl.getBoundingClientRect();
@@ -59,7 +76,7 @@ if (Serenity) {
     };
 
     const inpsectMouseOut = () => {
-        if (highlightElement.ownerDocument === document)
+        if (highlightElement.parentElement)
             document.body.removeChild(highlightElement);
         hoveredUniqueName = null;
     };
@@ -75,7 +92,7 @@ if (Serenity) {
             document.removeEventListener('mouseover', inpsectMouseOver);
             document.removeEventListener('mouseout', inpsectMouseOut);
             document.removeEventListener('mousedown', inspectClick);
-            if (highlightElement.ownerDocument === document)
+            if (highlightElement.parentElement)
                 document.body.removeChild(highlightElement);
 
             if (e) {
@@ -100,7 +117,7 @@ if (Serenity) {
                 return;
             }
 
-            const element = document.querySelector(selector);
+            const element = getHighlightElement(selector);
             if (!element) {
                 return;
             }
@@ -126,7 +143,7 @@ if (Serenity) {
                 return;
             }
 
-            const element = document.querySelector(selector);
+            const element = getHighlightElement(selector);
             if (!element) {
                 return;
             }
@@ -136,13 +153,9 @@ if (Serenity) {
                 return;
             }
 
-            let widgetEl = widget.getGridField().el?.querySelector('.editor') ?? widget.element.el;
+            const widgetEl = getVisibleHighlightElement(widget);
             if (!widgetEl) {
                 return;
-            }
-
-            if (widgetEl.classList.contains('select2-offscreen')) {
-                widgetEl = widgetEl.parentElement;
             }
 
             const rect = widgetEl.getBoundingClientRect();
@@ -154,12 +167,13 @@ if (Serenity) {
             document.body.appendChild(highlightElement);
 
             document.body.addEventListener('mousemove', () => {
-                document.body.removeChild(highlightElement);
+                if (highlightElement.parentElement)
+                    document.body.removeChild(highlightElement);
             }, { once: true });
         }
 
         if (event.data.name === 'unhighlight') {
-            if (highlightElement.ownerDocument === document)
+            if (highlightElement.parentElement)
                 document.body.removeChild(highlightElement);
         }
 
@@ -176,29 +190,62 @@ if (Serenity) {
         }
     });
 
-    const getElSelector = (el: HTMLElement) => {
-        let selector = el.tagName.toLowerCase();
+    // const getElSelector = (el: HTMLElement) => {
+    //     let selector = '';
+    //     if (el.id) {
+    //         return `#${el.id}`;
+    //     } else if (el.classList.length) {
+    //         selector += `.${Array.from(el.classList).join('.')}`;
+    //     }
+
+    //     selector = el.tagName.toLowerCase() + selector;
+
+    //     const name = el.getAttribute('name');
+    //     if (name) {
+    //         selector += `[name="${name}"]`;
+    //     }
+
+    //     return selector;
+    // };
+
+    const getElSelector = (el: HTMLElement, usedSelectors?: Set<string>, suffixSelector?: string): string => {
+        let selector = '';
         if (el.id) {
-            selector += `#${el.id}`;
-        } else if (el.classList.length) {
-            selector += `.${Array.from(el.classList).join('.')}`;
+            selector = `#${el.id}`;
+        } else {
+            if (el.classList.length) {
+                selector += `.${Array.from(el.classList).join('.')}`;
+
+                selector = el.tagName.toLowerCase() + selector;
+
+                const name = el.getAttribute('name');
+                if (name) {
+                    selector += `[name="${name}"]`;
+                }
+            }
         }
 
-        const name = el.getAttribute('name');
-        if (name) {
-            selector += `[name="${name}"]`;
+        if (suffixSelector && suffixSelector.length > 0)
+            selector += suffixSelector;
+
+        if (usedSelectors?.has(selector)) {
+            if (el.parentElement)
+                return getElSelector(el.parentElement!, usedSelectors, `>${selector}`);
+
+            return selector;
         }
 
+        usedSelectors?.add(selector);
         return selector;
-    };
+    }
 
-    function getCircularReplacer() {
+    function getCircularReplacer(usedSelectors?: Set<string>) {
         const ancestors: any = [];
         return function (key: string, value: any) {
             if (value instanceof Node) {
                 const val = "[DOM Node]";
                 if (value instanceof HTMLElement) {
-                    return val + `<${getElSelector(value)}>`;
+                    return val + `<${getElSelector(value, usedSelectors)}>`;
                 }
 
                 return val;
@@ -241,10 +288,11 @@ if (Serenity) {
 
             const widgetTree: Widget[] = [];
             const queue: { nodes: Node[], parentWidget?: Widget }[] = [{ nodes: [document.documentElement] }];
+            const domNodeSelectors: Set<string> = new Set();
+            const circularReplacer = getCircularReplacer();
 
             while (queue.length) {
                 const { nodes, parentWidget } = queue.shift()!;
-                const children: Widget[] = [];
                 for (const node of nodes) {
                     if (!(node instanceof HTMLElement)) {
                         continue;
@@ -254,39 +302,56 @@ if (Serenity) {
                     let currentWidgetData = parentWidget;
                     if (widget) {
                         const widgetName: string = Serenity.getTypeFullName(Serenity.getInstanceType(widget));
-                        const widgetData = JSON.parse(JSON.stringify(widget, getCircularReplacer()));
-                        widgetData.domNodeSelector = getElSelector(node);
+                        const widgetData = JSON.parse(JSON.stringify(widget, circularReplacer));
+                        widgetData.domNodeSelector = getElSelector(node, domNodeSelectors);
                         if (widget["value"]) {
-                            widgetData.value = JSON.parse(JSON.stringify(widget["value"], getCircularReplacer()));
+                            widgetData.value = JSON.parse(JSON.stringify(widget["value"], circularReplacer));
                         }
 
                         if (widget["selectedItem"]) {
-                            widgetData.selectedItem = JSON.parse(JSON.stringify(widget["selectedItem"], getCircularReplacer()));
+                            widgetData.selectedItem = JSON.parse(JSON.stringify(widget["selectedItem"], circularReplacer));
                         }
 
                         if (widget["selectedItems"]) {
-                            widgetData.selectedItems = JSON.parse(JSON.stringify(widget["selectedItems"], getCircularReplacer()));
+                            widgetData.selectedItems = JSON.parse(JSON.stringify(widget["selectedItems"], circularReplacer));
+                        }
+
+                        if (typeof Serenity.TemplatedDialog !== "undefined" && widget instanceof Serenity.TemplatedDialog)
+                            widgetData.isDialog = true;
+
+
+                        if (typeof Serenity.EntityDialog !== "undefined" && widget instanceof Serenity.EntityDialog) {
+                            widgetData.isEntityDialog = true;
+                            widgetData.service = `~/Services/` + widget.getService();
+                            if (Serenity.resolveUrl)
+                                widgetData.service = Serenity.resolveUrl(widgetData.service);
                         }
 
                         currentWidgetData = {
                             widgetData,
                             widgetName,
-                            name: widget.domNode.name,
+                            name: widget.domNode?.name ?? widget.getGridField()?.el?.dataset?.itemname,
                             children: []
                         };
+
+                        if (typeof Serenity.PropertyGrid !== "undefined" && widget instanceof Serenity.PropertyGrid) {
+                            if (widget.domDode?.classList.contains("s-LocalizationGrid")) {
+                                currentWidgetData.name = "LocalizationGrid";
+                            }
+                        }
+
                         if (parentWidget) {
                             parentWidget.children.push(currentWidgetData);
                         } else {
                             widgetTree.push(currentWidgetData);
                         }
-                        children.push(currentWidgetData);
                     }
 
                     queue.push({ nodes: Array.from(node.childNodes), parentWidget: currentWidgetData });
                 }
             }
 
-            return JSON.stringify(widgetTree, getCircularReplacer());
+            return JSON.stringify(widgetTree, circularReplacer);
         }
     };
 }
