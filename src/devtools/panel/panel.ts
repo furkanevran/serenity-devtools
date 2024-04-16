@@ -219,8 +219,8 @@ const init = async () => {
     setInterval(async () => {
         const dataString = await devtools.inspectedWindow.eval(`window.__SERENITY_DEVTOOLS__.getWidgets()`) as unknown as string;
         const data = JSON.parse(dataString) as Widget[];
-        const stack: { widget: Widget, level: number, activeChild: boolean }[] = data.map((widget) =>
-            ({ widget: widget, level: 1, activeChild: false })
+        const stack: { widget: Widget, level: number, activeChild: boolean, parentIdPrefix: string }[] = data.map((widget) =>
+            ({ widget: widget, level: 1, activeChild: false, parentIdPrefix: '' })
         );
 
         let newHtml = `<div class="grid grid-cols-2 gap-4"><div class="overflow-auto p-2 left-part">
@@ -228,24 +228,29 @@ const init = async () => {
         let selectedWidget: Widget | null = null;
 
         while (stack.length) {
-            const { widget, level, activeChild } = stack.shift()!;
+            const { widget, level, activeChild, parentIdPrefix } = stack.shift()!;
+            const currParentIdPrefix = parentIdPrefix && "#"+parentIdPrefix;
             const isSelected = widget.widgetData.uniqueName === selectUniqueName;
             if (isSelected) {
                 selectedWidget = widget;
+            }
+
+            // const name = widget.name ?? widget.widgetData.domNodeSelector.replace(parentIdPrefix, '').substring(1) ?? widget.widgetName;
+            let name = widget.name ?? widget.widgetName;
+
+            if (widget.widgetData.domNodeSelector.startsWith(currParentIdPrefix)) {
+                name = widget.widgetData.domNodeSelector.replace(currParentIdPrefix, '');
             }
 
             newHtml += `<div class="` +
                 (isSelected ? 'active ' : '') +
                 (activeChild ? 'active-child ' : '')
                 + `widget-item" style="padding-left: ${((level - 1) * 15) + 7}px;" data-unique-name="${escapeHtml(widget.widgetData.uniqueName)}">`;
-            if (widget.name)
-                newHtml += `<h1>${escapeHtml(widget.name)} <span class="rounded-md bg-blue-800 px-1">${escapeHtml(widget.widgetName)}</span></h1>`;
-            else
-                newHtml += `<h1>${escapeHtml(widget.widgetName)}</h1>`;
+                newHtml += `<h1>${escapeHtml(name)} <span class="rounded-md bg-blue-800 px-1">${escapeHtml(widget.widgetName)}</span></h1>`;
             newHtml += "</div>";
 
             widget.children?.toReversed().forEach((child) => {
-                stack.unshift({ widget: child, level: level + 1, activeChild: activeChild || isSelected });
+                stack.unshift({ widget: child, level: level + 1, activeChild: activeChild || isSelected, parentIdPrefix: widget.widgetData.idPrefix ?? currParentIdPrefix });
             });
 
             flatData.push(widget);
