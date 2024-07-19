@@ -127,6 +127,14 @@ const onMessage = (message: any) => {
         isInspecting = false;
         selectUniqueName = message.uniqueName;
     }
+
+    if (message.name === 'openSource') {
+        if (!message.tempVarName)
+            return;
+
+        devtools.inspectedWindow.eval(`inspect(${message.tempVarName}.constructor); delete ${message.tempVarName};`);
+
+    }
 }
 
 
@@ -171,6 +179,7 @@ document.body.addEventListener('click', (event) => {
             return;
 
         devtools.inspectedWindow.eval(`inspect($$('${selectedWidget.widgetData.domNodeSelector}')[0])`);
+        
         return;
     }
 
@@ -184,6 +193,17 @@ document.body.addEventListener('click', (event) => {
             selector: selectedWidget.widgetData.domNodeSelector,
         });
         return;
+    }
+
+    if (event.target.classList.contains('defition-button')) {
+        const selectedWidget = findSelectedWidget(uniqueName)
+        if (!selectedWidget)
+            return;
+
+        send({
+            name: 'openSource',
+            selector: selectedWidget.widgetData.domNodeSelector,
+        });
     }
 
     if (targetDiv.classList.contains('widget-item')) {
@@ -307,6 +327,7 @@ const init = async () => {
             newHtml += `<div class="sticky top-0 overflow-hidden">`;
             newHtml += `<h1>${escapeHtml(selectedWidget.widgetName)} ${escapeHtml(selectedWidget.name ?? '')}</h1>`;
             newHtml += `<button class="highlight-button block">Inspect</button>`;
+            newHtml += `<button class="defition-button block">Open Source</button>`;
             newHtml += `<button class="save-as-temp-variable-button block">Save as temp variable</button>`;
             newHtml += `<div id="json-viewer" class="border p-2 m-2 overflow-auto"></div>`;
             jsonViewer.setRoot(null);

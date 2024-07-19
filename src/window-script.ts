@@ -111,7 +111,7 @@ if (Serenity) {
 
         console.log('window-script.ts', event.data);
 
-        if (event.data.name === "saveAsTempVariable") {
+        if (event.data.name === "saveAsTempVariable" || event.data.name === "openSource") {
             const selector = event.data?.selector;
             if (!selector) {
                 return;
@@ -127,6 +127,7 @@ if (Serenity) {
                 return;
             }
 
+
             const tempVarName = "temp";
             let tempVarIndex = 1;
             while ((window as any)[tempVarName + tempVarIndex]) {
@@ -134,6 +135,16 @@ if (Serenity) {
             }
 
             (window as any)[tempVarName + tempVarIndex] = tempVarValue;
+
+            if (event.data.name === "openSource") {
+                window.postMessage({
+                    name: 'openSource',
+                    namespace: 'com.serenity.devtools',
+                    tempVarName: tempVarName + tempVarIndex
+                });
+                return;
+            }
+
             console.log(tempVarName + tempVarIndex, tempVarValue);
         }
 
