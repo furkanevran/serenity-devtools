@@ -1,4 +1,4 @@
-import { devtools, runtime } from 'webextension-polyfill';
+import { devtools, Runtime, runtime } from 'webextension-polyfill';
 import { JsonViewer } from './json-viewer';
 
 const RETRY_INTERVAL = 300;
@@ -69,9 +69,66 @@ let selectUniqueName: string | null = null;
 const flatData: Widget[] = [];
 const jsonViewer = new JsonViewer();
 
-const devtoolsPanelConnection = runtime.connect({
-    name: 'panel',
-});
+const messageQueue: any[] = [];
+
+// const devtoolsPanelConnection = runtime.connect({
+//     name: 'panel',
+// });
+
+let devtoolsPanelConnection: Runtime.Port | null = null;
+const connect = function connectToBackgroundScript() {
+    devtoolsPanelConnection = runtime.connect({
+        name: 'panel',
+    });
+
+    devtoolsPanelConnection.postMessage({
+        name: 'init',
+        tabId: devtools.inspectedWindow.tabId,
+    });
+
+    devtoolsPanelConnection.onDisconnect.addListener(() => {
+        devtoolsPanelConnection = null;
+        console.log('devtoolsPanelConnection disconnected, reconnecting...');
+        connect();
+    });
+
+    devtoolsPanelConnection.onMessage.addListener((message) => {
+        onMessage(message);
+    });
+
+    console.log('devtoolsPanelConnection connected, flushing messageQueue.... ', messageQueue.length);
+
+    for (let msgIdx = 0; msgIdx < messageQueue.length; msgIdx++) {
+        if (!devtoolsPanelConnection) {
+            break;
+        }
+
+        devtoolsPanelConnection.postMessage(messageQueue[msgIdx]);
+        messageQueue.splice(msgIdx--, 1);
+    }
+}
+
+connect();
+
+const send = function sendMessageToBackgroundScript(message: any) {
+    if (!devtoolsPanelConnection) {
+        messageQueue.push(message);
+        return;
+    }
+
+    console.log('sending message', message);
+    devtoolsPanelConnection.postMessage(message);
+}
+
+const onMessage = (message: any) => {
+    console.log('panel message', message);
+
+    if (message.name === 'inspected') {
+        isInspecting = false;
+        selectUniqueName = message.uniqueName;
+    }
+}
+
 
 const findSelectedWidget = (uniqueName: string) => {
     return flatData.find((widget) => widget.widgetData.uniqueName === uniqueName);
@@ -84,7 +141,7 @@ document.body.addEventListener('click', (event) => {
 
     if (event.target.classList.contains('inspect-button')) {
         isInspecting = true;
-        devtoolsPanelConnection.postMessage({
+        send({
             name: 'inspect'
         });
         return;
@@ -92,7 +149,7 @@ document.body.addEventListener('click', (event) => {
 
     if (event.target.classList.contains('stop-inspect-button')) {
         isInspecting = false;
-        devtoolsPanelConnection.postMessage({
+        send({
             name: 'stopInspect',
         });
         return;
@@ -122,7 +179,7 @@ document.body.addEventListener('click', (event) => {
         if (!selectedWidget)
             return;
 
-        devtoolsPanelConnection.postMessage({
+        send({
             name: 'saveAsTempVariable',
             selector: selectedWidget.widgetData.domNodeSelector,
         });
@@ -152,7 +209,7 @@ const unhighlight = ((e?: MouseEvent) => {
         }
     }
 
-    devtoolsPanelConnection.postMessage({
+    send({
         name: 'unhighlight',
     });
     highlightedUniqueName = null;
@@ -184,7 +241,7 @@ const highlight = ((event: MouseEvent) => {
         return;
 
     highlightedUniqueName = uniqueName;
-    devtoolsPanelConnection.postMessage({
+    send({
         name: 'highlight',
         selector: selectedWidget.widgetData.domNodeSelector,
     });
@@ -196,20 +253,7 @@ const highlight = ((event: MouseEvent) => {
 
 document.addEventListener('mouseover', highlight);
 
-devtoolsPanelConnection.onMessage.addListener((message) => {
-    if (message.name === 'inspected') {
-        isInspecting = false;
-        selectUniqueName = message.uniqueName;
-    }
-});
-
-
 const init = async () => {
-    devtoolsPanelConnection.postMessage({
-        name: 'init',
-        tabId: devtools.inspectedWindow.tabId,
-    });
-
     retryCount = 10;
     await checkSerenity();
     if (!hasSerenity) {
@@ -229,7 +273,7 @@ const init = async () => {
 
         while (stack.length) {
             const { widget, level, activeChild, parentIdPrefix } = stack.shift()!;
-            const currParentIdPrefix = parentIdPrefix && "#"+parentIdPrefix;
+            const currParentIdPrefix = parentIdPrefix && "#" + parentIdPrefix;
             const isSelected = widget.widgetData.uniqueName === selectUniqueName;
             if (isSelected) {
                 selectedWidget = widget;
@@ -246,7 +290,7 @@ const init = async () => {
                 (isSelected ? 'active ' : '') +
                 (activeChild ? 'active-child ' : '')
                 + `widget-item" style="padding-left: ${((level - 1) * 15) + 7}px;" data-unique-name="${escapeHtml(widget.widgetData.uniqueName)}">`;
-                newHtml += `<h1>${escapeHtml(name)} <span class="rounded-md bg-blue-800 px-1">${escapeHtml(widget.widgetName)}</span></h1>`;
+            newHtml += `<h1>${escapeHtml(name)} <span class="rounded-md bg-blue-800 px-1">${escapeHtml(widget.widgetName)}</span></h1>`;
             newHtml += "</div>";
 
             widget.children?.toReversed().forEach((child) => {

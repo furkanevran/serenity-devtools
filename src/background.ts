@@ -39,11 +39,22 @@ const connections = new Map<number, Runtime.Port[]>(); // per tabId
     });
 
     browser.runtime.onConnect.addListener((port) => {
+        const anyPort = port as any;
+        anyPort._timer = setInterval(() => disconnect(port), 30000);
+
+        const deleteTimer = () => {
+            if (!anyPort._timer)
+                return;
+
+            clearInterval(anyPort._timer);
+            delete anyPort._timer;
+        }
+
         const extensionListener = (message: any, port: Runtime.Port) => {
             const tabId = message.tabId ?? port.sender?.tab?.id ?? activeTabId;
 
             if (message.name === "init") {
-                connections.set(tabId, [...(connections.get(tabId) || []), port]);
+                connections.set(tabId, [...(connections.get(tabId)?.filter(x => port != x) || []), port]);
                 return;
             }
 
@@ -77,15 +88,20 @@ const connections = new Map<number, Runtime.Port[]>(); // per tabId
             });
         }
 
+        function disconnect(port: browser.Runtime.Port) {
+            port.onMessage.removeListener(extensionListener);
+            port.onDisconnect.removeListener(disconnect);
+
+            deleteTimer();
+            port.disconnect();
+
+            for (const [tabId, ports] of connections.entries()) {
+                connections.set(tabId, ports.filter(p => p !== port));
+            }
+        }
+
         port.onMessage.addListener(extensionListener);
 
-        port.onDisconnect.addListener((port) => {
-            port.onMessage.removeListener(extensionListener);
-
-            const tabId = [...connections.entries()].find(([_, ports]) => ports.includes(port))?.[0];
-            if (tabId) {
-                connections.set(tabId, connections.get(tabId)?.filter(p => p !== port) || []);
-            }
-        });
+        port.onDisconnect.addListener((port) => disconnect(port));
     });
 })();
