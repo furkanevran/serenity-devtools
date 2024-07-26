@@ -25,7 +25,7 @@ const connect = function connectToBackgroundScript() {
     });
 
     bridgeConnection.onMessage.addListener((message) => {
-        window.postMessage({ ...message, namespace: 'com.serenity.devtools/window-script' }, '*');
+        window.postMessage({ ...message, namespace: 'is.serenity.devtools/window-script' }, '*');
     });
 
     bridgeConnection.onDisconnect.addListener(() => {
@@ -47,7 +47,7 @@ const connect = function connectToBackgroundScript() {
 }
 
 window.addEventListener('message', async (event) => {
-    if (event.source !== window || event.data?.namespace !== 'com.serenity.devtools') {
+    if (event.source !== window || event.data?.namespace !== 'is.serenity.devtools') {
         return;
     }
 

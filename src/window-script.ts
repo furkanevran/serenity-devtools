@@ -3,7 +3,7 @@ const Serenity = (globalThis as any)["Serenity"];
 if (Serenity) {
     window.postMessage({
         name: 'init',
-        namespace: 'com.serenity.devtools',
+        namespace: 'is.serenity.devtools',
     });
 
     const highlightElement = document.createElement('div');
@@ -85,7 +85,7 @@ if (Serenity) {
         if (hoveredUniqueName) {
             window.postMessage({
                 name: 'inspected',
-                namespace: 'com.serenity.devtools',
+                namespace: 'is.serenity.devtools',
                 uniqueName: hoveredUniqueName,
             });
 
@@ -105,7 +105,7 @@ if (Serenity) {
 
 
     window.addEventListener('message', (event) => {
-        if (event.source !== window || event.data?.namespace !== 'com.serenity.devtools/window-script') {
+        if (event.source !== window || event.data?.namespace !== 'is.serenity.devtools/window-script') {
             return;
         }
 
@@ -139,7 +139,7 @@ if (Serenity) {
             if (event.data.name === "openSource") {
                 window.postMessage({
                     name: 'openSource',
-                    namespace: 'com.serenity.devtools',
+                    namespace: 'is.serenity.devtools',
                     tempVarName: tempVarName + tempVarIndex
                 });
                 return;
