@@ -3,6 +3,7 @@ import { Panel } from "./components/Panel";
 import { createRoot } from "react-dom/client";
 import { devtools } from "webextension-polyfill";
 import { FaExclamationTriangle, FaSpinner } from "react-icons/fa";
+import { SelectedWidgetContextProvider } from "./utils/SelectedWidgetContext";
 
 const container = document.getElementById('root');
 if (!container) {
@@ -51,7 +52,11 @@ function App() {
     }, []);
 
     if (hasSerenity)
-        return <Panel />;
+        return (
+            <SelectedWidgetContextProvider>
+                <Panel />
+            </SelectedWidgetContextProvider>
+        );
 
     return (hasSerenity ? <Panel /> :
         <div className="select-none w-100 h-full flex flex-col justify-center items-center">

@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { WidgetDetails } from "./WidgetDetails";
 import { WidgetList } from "./WidgetList";
 import { FaStopCircle, FaPlayCircle } from "react-icons/fa";
 import { onMessage } from "../utils/port";
+import { SelectedWidgetContext } from "../utils/SelectedWidgetContext";
 
 export function Panel() {
     const [isInspecting, setIsInspecting] = useState(false);
-    const [selectedUniqueName, setSelectedUniqueName] = useState<string | null>(null);
+    const { selectedWidget } = useContext(SelectedWidgetContext);
 
     useEffect(() => {
         onMessage("stop-inspecting", (_message) => {
@@ -21,9 +22,9 @@ export function Panel() {
                 {isInspecting ? <FaStopCircle /> : <FaPlayCircle />} {isInspecting ? "Stop" : "Start"} Inspecting</button>
         </div>
 
-        <div className={`grid grid-flow-col grid-cols-${selectedUniqueName ? "2" : "1"} h-full flex-shrink-1 overflow-y-auto`}>
-            <WidgetList selectedUniqueName={selectedUniqueName} setSelectedUniqueName={setSelectedUniqueName} />
-            {selectedUniqueName && <WidgetDetails uniqueName={selectedUniqueName!} />}
+        <div className={`grid grid-flow-col grid-cols-${selectedWidget ? "2" : "1"} h-full flex-shrink-1 overflow-y-auto`}>
+            <WidgetList />
+            {selectedWidget && <WidgetDetails />}
         </div>
     </>;
 }
