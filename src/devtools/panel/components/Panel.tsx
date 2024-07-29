@@ -21,9 +21,9 @@ export function Panel() {
                 {isInspecting ? <FaStopCircle /> : <FaPlayCircle />} {isInspecting ? "Stop" : "Start"} Inspecting</button>
         </div>
 
-        <div className={`grid grid-flow-col grid-cols-${isInspecting ? "2" : "1"} h-full flex-grow`}>
+        <div className={`grid grid-flow-col grid-cols-${selectedUniqueName ? "2" : "1"} h-full flex-shrink-1 overflow-y-auto`}>
             <WidgetList selectedUniqueName={selectedUniqueName} setSelectedUniqueName={setSelectedUniqueName} />
-            {isInspecting && <WidgetDetails uniqueName={selectedUniqueName!} />}
+            {selectedUniqueName && <WidgetDetails uniqueName={selectedUniqueName!} />}
         </div>
     </>;
 }
