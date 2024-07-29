@@ -187,7 +187,7 @@ if (Serenity) {
                 document.body.removeChild(highlightElement);
         }
 
-        if (event.data.name === 'inspect') {
+        if (event.data.name === 'start-inspecting') {
             document.addEventListener('mouseover', inpsectMouseOver);
             document.addEventListener('mouseout', inpsectMouseOut);
             document.addEventListener('mousedown', inspectClick);

@@ -28,8 +28,8 @@ const connect = function connectToBackgroundScript() {
     devtoolsPanelConnection.onMessage.addListener((message: MessageValues) => {
         console.log('devtoolsPanelConnection message', message);
 
-        if (message.name && listeners[message.name]) {
-            listeners[message.name]!(message as any);
+        if (message.name && listeners && listeners[message.name] && listeners[message.name]!.length > 0) {
+            listeners[message.name]!.forEach((listener) => listener(message as any));
         }
     });
 
@@ -47,7 +47,7 @@ const connect = function connectToBackgroundScript() {
 
 connect();
 
-export const send = function sendMessageToBackgroundScript(message: MessageValues) {
+export const sendMessage = function sendMessageToBackgroundScript(message: MessageValues) {
     if (!devtoolsPanelConnection) {
         messageQueue.push(message);
         return;
@@ -58,7 +58,20 @@ export const send = function sendMessageToBackgroundScript(message: MessageValue
 }
 
 export const onMessage = <T extends MessageKeys>(name: T, callback: MessageHandler<T>) => {
-    listeners[name as MessageKeys] = callback as any;
+    if (!listeners[name]) {
+        listeners[name] = [];
+    }
+
+    listeners[name as MessageKeys]!.push(callback as MessageHandler<MessageKeys>);
+}
+
+export const removeMessageListener = <T extends MessageKeys>(name: T, callback: MessageHandler<T>) => {
+    if (!listeners[name]) {
+        return;
+    }
+
+    // @ts-expect-error - TS doesn't like the type conversion here
+    listeners[name as MessageKeys] = listeners[name as MessageKeys]!.filter((listener) => listener !== callback as MessageHandler<MessageKeys>);
 }
 
 devtools.network.onNavigated.addListener(() => {

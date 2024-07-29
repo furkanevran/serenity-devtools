@@ -2,7 +2,7 @@ import { useContext, useEffect, useState } from "react";
 import { WidgetDetails } from "./WidgetDetails";
 import { WidgetList } from "./WidgetList";
 import { FaStopCircle, FaPlayCircle } from "react-icons/fa";
-import { onMessage } from "../utils/port";
+import { onMessage, sendMessage } from "../utils/port";
 import { SelectedWidgetContext } from "../utils/SelectedWidgetContext";
 
 export function Panel() {
@@ -13,7 +13,20 @@ export function Panel() {
         onMessage("stop-inspecting", (_message) => {
             setIsInspecting(false);
         });
+
+        onMessage("inspected", () => {
+            setIsInspecting(false);
+        });
     }, []);
+
+    useEffect(() => {
+        if (isInspecting) {
+            sendMessage({ name: "start-inspecting" });
+            return;
+        }
+
+        sendMessage({ name: "stop-inspecting" });
+    }, [isInspecting]);
 
     return <>
         <div>

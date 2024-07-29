@@ -7,19 +7,16 @@ export type MessageTypes = {
     "activated": unknown;
     "start-inspecting": unknown;
     "inspect": {
-        uniqueName: string;
+        selector: string;
     };
     "highlight": {
-        uniqueName: string;
         selector: string;
     };
     "unhighlight": unknown;
     "open-source": {
-        uniqueName: string;
         selector: string;
     };
     "save-as-global-variable": {
-        uniqueName: string;
         selector: string;
     };
     "save-as-global-variable-response": {
@@ -39,7 +36,7 @@ export type MessageValues = {
 
 export type MessageHandler<T> = (message: MessageValue<T>) => void;
 export type MessageHandlers = Partial<{
-    [K in MessageKeys]: MessageHandler<K>;
+    [K in MessageKeys]: MessageHandler<K>[];
 }>;
 
 export type WindowMessageValues = {
