@@ -5,12 +5,14 @@ import { WidgetListItem } from "./WidgetListItem";
 export type Widget = {
     widgetData: any & { domNodeSelector: string };
     widgetName: string;
-    name: string;
+    name: string | null;
+    displayName: string;
     level: number;
     children: Widget[];
 }
 
 const fetchData = async (setValue: (data: Widget[]) => void) => {
+    // TODO: aggregate widgets into a flat map with the level on the window script
     const dataString = await devtools.inspectedWindow.eval(`window.__SERENITY_DEVTOOLS__.getWidgets()`) as unknown as string;
     const data = JSON.parse(dataString) as Widget[];
     const stack: { widget: Widget, level: number, parentIdPrefix: string }[] = data.map((widget) =>
@@ -22,10 +24,10 @@ const fetchData = async (setValue: (data: Widget[]) => void) => {
     while (stack.length > 0) {
         const { widget, level, parentIdPrefix } = stack.shift()!;
         const currParentIdPrefix = parentIdPrefix && "#" + parentIdPrefix;
-        widget.name ??= widget.widgetName;
+        widget.displayName ??= widget.widgetName;
 
         if (widget.widgetData.domNodeSelector.startsWith(currParentIdPrefix)) {
-            widget.name = widget.widgetData.domNodeSelector.replace(currParentIdPrefix, '');
+            widget.displayName = widget.widgetData.domNodeSelector.replace(currParentIdPrefix, '');
         }
 
         widget.children?.toReversed().forEach((child) => {
@@ -44,12 +46,12 @@ export function WidgetList({ selectedUniqueName, setSelectedUniqueName }:
     const [data, setData] = useState<Widget[]>([]);
 
     const setActive = (widget: Widget) => {
-        if (selectedUniqueName === widget.name) {
+        if (selectedUniqueName === widget.widgetData.domNodeSelector) {
             setSelectedUniqueName(null);
             return;
         }
 
-        setSelectedUniqueName(widget.name);
+        setSelectedUniqueName(widget.widgetData.domNodeSelector);
     }
 
     useEffect(() => {
