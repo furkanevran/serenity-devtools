@@ -1,9 +1,17 @@
 import browser from 'webextension-polyfill';
 
 (async () => {
-    await browser.devtools.panels.create(
+    const p = await browser.devtools.panels.create(
         "Serenity",
         "devtools/devtools.png",
         "devtools/panel/panel.html",
     );
+
+    p.onShown.addListener(() => {
+        console.log('panel shown');
+    });
+
+    p.onHidden.addListener(() => {
+        console.log('panel hidden');
+    });
 })();

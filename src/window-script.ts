@@ -3,7 +3,7 @@ const Serenity = (globalThis as any)["Serenity"];
 if (Serenity) {
     window.postMessage({
         name: 'init',
-        namespace: 'is.serenity.devtools',
+        namespace: 'is.serenity.devtools'
     });
 
     const highlightElement = document.createElement('div');

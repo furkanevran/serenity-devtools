@@ -24,7 +24,8 @@
             "js": [
                 "content-script.ts"
             ],
-            "run_at": "document_end"
+            "run_at": "document_end",
+            "all_frames": false
         },
         {
             "matches": [

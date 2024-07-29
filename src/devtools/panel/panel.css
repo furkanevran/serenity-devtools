@@ -18,3 +18,7 @@ body {
 .widget-item.active-child {
     @apply bg-blue-950 text-gray-200 hover:bg-blue-900;
 }
+
+#root {
+    @apply h-screen flex flex-col;
+}

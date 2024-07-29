@@ -2,5 +2,8 @@
   "extends": "@parcel/config-webextension",
   "validators": {
     "*.{ts,tsx}": ["@parcel/validator-typescript"]
+  },
+  "transformers": {
+    "*.{js,jsx,ts,tsx,mjs}": ["@parcel/transformer-js"]
   }
 }

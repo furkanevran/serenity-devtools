@@ -1,19 +1,9 @@
 import browser from 'webextension-polyfill';
 
-// const connection = browser.runtime.connect({
-//     name: 'content-script',
-// });
-
-// connection.onMessage.addListener((message) => {
-//     console.log('content-script message', message);
-// });
-
-// connection.postMessage({
-//     name: 'init'
-// });
-
 let bridgeConnection: browser.Runtime.Port | null = null;
 const messageQueue: any[] = [];
+
+console.log('content-script loaded');
 
 const connect = function connectToBackgroundScript() {
     bridgeConnection = browser.runtime.connect({
@@ -57,6 +47,12 @@ window.addEventListener('message', async (event) => {
     }
 
     bridgeConnection.postMessage(event.data);
+});
+
+window.addEventListener('beforeunload', () => {
+    bridgeConnection?.postMessage({
+        name: 'stop-inspecting'
+    });
 });
 
 connect();
