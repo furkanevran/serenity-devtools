@@ -1,7 +1,8 @@
 import browser from 'webextension-polyfill';
+import { MessageValues, WindowMessageValues } from './utils/messageTypes';
 
 let bridgeConnection: browser.Runtime.Port | null = null;
-const messageQueue: any[] = [];
+const messageQueue: WindowMessageValues[] = [];
 
 console.log('content-script loaded');
 
@@ -11,8 +12,8 @@ const connect = function connectToBackgroundScript() {
     });
 
     bridgeConnection.postMessage({
-        name: 'init'
-    });
+        name: 'init',
+    } satisfies MessageValues);
 
     bridgeConnection.onMessage.addListener((message) => {
         window.postMessage({ ...message, namespace: 'is.serenity.devtools/window-script' }, '*');
@@ -36,7 +37,7 @@ const connect = function connectToBackgroundScript() {
     }
 }
 
-window.addEventListener('message', async (event) => {
+window.addEventListener('message', async (event: MessageEvent<WindowMessageValues>) => {
     if (event.source !== window || event.data?.namespace !== 'is.serenity.devtools') {
         return;
     }
@@ -52,7 +53,7 @@ window.addEventListener('message', async (event) => {
 window.addEventListener('beforeunload', () => {
     bridgeConnection?.postMessage({
         name: 'stop-inspecting'
-    });
+    } satisfies MessageValues);
 });
 
 connect();

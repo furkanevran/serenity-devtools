@@ -1,10 +1,12 @@
+import { WindowMessageValues } from "./utils/messageTypes";
+
 const Serenity = (globalThis as any)["Serenity"];
 
 if (Serenity) {
     window.postMessage({
         name: 'init',
         namespace: 'is.serenity.devtools'
-    });
+    } satisfies WindowMessageValues);
 
     const highlightElement = document.createElement('div');
     highlightElement.style.position = 'absolute';
@@ -87,7 +89,7 @@ if (Serenity) {
                 name: 'inspected',
                 namespace: 'is.serenity.devtools',
                 uniqueName: hoveredUniqueName,
-            });
+            } satisfies WindowMessageValues);
 
             document.removeEventListener('mouseover', inpsectMouseOver);
             document.removeEventListener('mouseout', inpsectMouseOut);
@@ -104,14 +106,14 @@ if (Serenity) {
     };
 
 
-    window.addEventListener('message', (event) => {
+    window.addEventListener('message', (event: MessageEvent<WindowMessageValues>) => {
         if (event.source !== window || event.data?.namespace !== 'is.serenity.devtools/window-script') {
             return;
         }
 
         console.log('window-script.ts', event.data);
 
-        if (event.data.name === "saveAsTempVariable" || event.data.name === "openSource") {
+        if (event.data.name === "save-as-global-variable" || event.data.name === "open-source") {
             const selector = event.data?.selector;
             if (!selector) {
                 return;
@@ -136,14 +138,11 @@ if (Serenity) {
 
             (window as any)[tempVarName + tempVarIndex] = tempVarValue;
 
-            if (event.data.name === "openSource") {
-                window.postMessage({
-                    name: 'openSource',
-                    namespace: 'is.serenity.devtools',
-                    tempVarName: tempVarName + tempVarIndex
-                });
-                return;
-            }
+            window.postMessage({
+                name: 'save-as-global-variable-response',
+                namespace: 'is.serenity.devtools',
+                tempVarName: tempVarName + tempVarIndex
+            } satisfies WindowMessageValues);
 
             console.log(tempVarName + tempVarIndex, tempVarValue);
         }
@@ -194,7 +193,7 @@ if (Serenity) {
             document.addEventListener('mousedown', inspectClick);
         }
 
-        if (event.data.name === 'stopInspect') {
+        if (event.data.name === 'stop-inspecting') {
             document.removeEventListener('mouseover', inpsectMouseOver);
             document.removeEventListener('mouseout', inpsectMouseOut);
             document.removeEventListener('mousedown', inspectClick);

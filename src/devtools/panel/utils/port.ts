@@ -1,8 +1,9 @@
+import {  MessageHandler, MessageHandlers, MessageKeys, MessageValues } from "@/utils/messageTypes";
 import { devtools, runtime, Runtime} from "webextension-polyfill";
 
 let devtoolsPanelConnection: Runtime.Port | null = null;
-const messageQueue: any[] = [];
-const listeners: Record<string, (message: any) => void> = {};
+const messageQueue: MessageValues[] = [];
+const listeners: MessageHandlers = {};
 
 const connect = function connectToBackgroundScript() {
     if (devtoolsPanelConnection) {
@@ -24,11 +25,11 @@ const connect = function connectToBackgroundScript() {
         connect();
     });
 
-    devtoolsPanelConnection.onMessage.addListener((message) => {
+    devtoolsPanelConnection.onMessage.addListener((message: MessageValues) => {
         console.log('devtoolsPanelConnection message', message);
 
         if (message.name && listeners[message.name]) {
-            listeners[message.name](message);
+            listeners[message.name]!(message as any);
         }
     });
 
@@ -46,7 +47,7 @@ const connect = function connectToBackgroundScript() {
 
 connect();
 
-export const send = function sendMessageToBackgroundScript(message: any) {
+export const send = function sendMessageToBackgroundScript(message: MessageValues) {
     if (!devtoolsPanelConnection) {
         messageQueue.push(message);
         return;
@@ -56,17 +57,10 @@ export const send = function sendMessageToBackgroundScript(message: any) {
     devtoolsPanelConnection.postMessage(message);
 }
 
-export const onMessage = (name: string, callback: (message: any) => void) => {
-    listeners[name] = callback;
+export const onMessage = <T extends MessageKeys>(name: T, callback: MessageHandler<T>) => {
+    listeners[name as MessageKeys] = callback as any;
 }
 
 devtools.network.onNavigated.addListener(() => {
     connect();
 });
-
-// devtools.network.onNavigated.addListener(() => {
-//     devtoolsPanelConnection?.postMessage({
-//         name: 'init',
-//         tabId: devtools.inspectedWindow.tabId,
-//     });
-// });
