@@ -1,5 +1,5 @@
 import browser from 'webextension-polyfill';
-import { MessageValues, WindowMessageValues } from './utils/messageTypes';
+import { MessageValues, WindowMessageValues } from './types/messageTypes';
 
 let bridgeConnection: browser.Runtime.Port | null = null;
 const messageQueue: WindowMessageValues[] = [];

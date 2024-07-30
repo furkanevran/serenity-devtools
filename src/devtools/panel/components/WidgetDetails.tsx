@@ -10,6 +10,6 @@ export function WidgetDetails() {
     }
 
     return <div className="border border-gray-900 ms-2 rounded-md max-w-full overflow-auto">
-        <ReactJson src={selectedWidget.widgetData} theme="monokai" collapsed={1} />
+        <ReactJson src={selectedWidget} theme="monokai" collapsed={1} />
     </div>
 }

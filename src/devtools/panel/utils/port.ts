@@ -1,4 +1,4 @@
-import {  MessageHandler, MessageHandlers, MessageKeys, MessageValues } from "@/utils/messageTypes";
+import {  MessageHandler, MessageHandlers, MessageKeys, MessageValues } from "@/types/messageTypes";
 import { devtools, runtime, Runtime} from "webextension-polyfill";
 
 let devtoolsPanelConnection: Runtime.Port | null = null;

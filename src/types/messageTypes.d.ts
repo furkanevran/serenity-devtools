@@ -19,7 +19,7 @@ export type MessageTypes = {
     "save-as-global-variable": {
         selector: string;
     };
-    "save-as-global-variable-response": {
+    "open-source-response": {
         tempVarName: string;
     };
     "inspected": {

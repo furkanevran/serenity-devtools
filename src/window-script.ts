@@ -1,4 +1,5 @@
-import { WindowMessageValues } from "./utils/messageTypes";
+import { WindowMessageValues } from "./types/messageTypes";
+import { WidgetInfo } from "./types/widgetType";
 
 const Serenity = (globalThis as any)["Serenity"];
 
@@ -111,8 +112,6 @@ if (Serenity) {
             return;
         }
 
-        console.log('window-script.ts', event.data);
-
         if (event.data.name === "save-as-global-variable" || event.data.name === "open-source") {
             const selector = event.data?.selector;
             if (!selector) {
@@ -129,7 +128,6 @@ if (Serenity) {
                 return;
             }
 
-
             const tempVarName = "temp";
             let tempVarIndex = 1;
             while ((window as any)[tempVarName + tempVarIndex]) {
@@ -138,11 +136,15 @@ if (Serenity) {
 
             (window as any)[tempVarName + tempVarIndex] = tempVarValue;
 
-            window.postMessage({
-                name: 'save-as-global-variable-response',
-                namespace: 'is.serenity.devtools',
-                tempVarName: tempVarName + tempVarIndex
-            } satisfies WindowMessageValues);
+            if (event.data.name === "open-source") {
+                window.postMessage({
+                    name: 'open-source-response',
+                    namespace: 'is.serenity.devtools',
+                    tempVarName: tempVarName + tempVarIndex
+                } satisfies WindowMessageValues);
+
+                return;
+            }
 
             console.log(tempVarName + tempVarIndex, tempVarValue);
         }
@@ -200,24 +202,6 @@ if (Serenity) {
         }
     });
 
-    // const getElSelector = (el: HTMLElement) => {
-    //     let selector = '';
-    //     if (el.id) {
-    //         return `#${el.id}`;
-    //     } else if (el.classList.length) {
-    //         selector += `.${Array.from(el.classList).join('.')}`;
-    //     }
-
-    //     selector = el.tagName.toLowerCase() + selector;
-
-    //     const name = el.getAttribute('name');
-    //     if (name) {
-    //         selector += `[name="${name}"]`;
-    //     }
-
-    //     return selector;
-    // };
-
     const getElSelector = (el: HTMLElement, usedSelectors?: Set<string>, suffixSelector?: string): string => {
         let selector = '';
         if (el.id) {
@@ -266,7 +250,7 @@ if (Serenity) {
             }
 
             if (typeof value === "function") {
-                return value.toString();
+                return "[Function: " + (value.name || "anonymous") + "]";
             }
 
             if (typeof value !== "object" || value === null) {
@@ -289,15 +273,8 @@ if (Serenity) {
 
     (globalThis as any).__SERENITY_DEVTOOLS__ = {
         getWidgets: () => {
-            type Widget = {
-                widgetData: any;
-                widgetName: string;
-                name?: string;
-                children: Widget[];
-            }
-
-            const widgetTree: Widget[] = [];
-            const queue: { nodes: Node[], parentWidget?: Widget }[] = [{ nodes: [document.documentElement] }];
+            const widgetTree: WidgetInfo[] = [];
+            const queue: { nodes: Node[], parentWidget?: WidgetInfo }[] = [{ nodes: [document.documentElement] }];
             const domNodeSelectors: Set<string> = new Set();
             const circularReplacer = getCircularReplacer();
 
@@ -311,8 +288,10 @@ if (Serenity) {
                     const widget = Serenity.tryGetWidget(node);
                     let currentWidgetData = parentWidget;
                     if (widget) {
-                        const widgetName: string = Serenity.getTypeFullName(Serenity.getInstanceType(widget));
-                        const widgetData = JSON.parse(JSON.stringify(widget, circularReplacer));
+                        const name: string = Serenity.getTypeFullName(Serenity.getInstanceType(widget)) ?? widget.constructor.name;
+                        const currParentIdPrefix = parentWidget?.domNodeSelector && "#" + parentWidget.domNodeSelector;
+     
+                        /*const widgetData = JSON.parse(JSON.stringify(widget, circularReplacer));
                         widgetData.domNodeSelector = getElSelector(node, domNodeSelectors);
                         if (widget["value"]) {
                             widgetData.value = JSON.parse(JSON.stringify(widget["value"], circularReplacer));
@@ -336,13 +315,24 @@ if (Serenity) {
                             if (Serenity.resolveUrl)
                                 widgetData.service = Serenity.resolveUrl(widgetData.service);
                         }
-
+*/
                         currentWidgetData = {
-                            widgetData,
-                            widgetName,
-                            name: widget.domNode?.name ?? widget.getGridField()?.el?.dataset?.itemname,
-                            children: []
+                            name,
+                            displayName: widget.domNode?.name ?? widget.getGridField()?.el?.dataset?.itemname,
+                            domNodeSelector: getElSelector(node, domNodeSelectors),
+                            typeName: widget.constructor.name,
+                            uniqueName: widget.uniqueName,
+                            children: [],
+                            parentIdPrefix: parentWidget?.uniqueName ?? ""
                         };
+
+                        if (currParentIdPrefix && currentWidgetData.domNodeSelector && currentWidgetData.domNodeSelector.startsWith(currParentIdPrefix)) {
+                            currentWidgetData.displayName ??= currentWidgetData.domNodeSelector.replace(currParentIdPrefix, '');
+                        }
+
+                        if (!currentWidgetData.displayName || currentWidgetData.displayName.length === 0) {
+                            currentWidgetData.displayName = currentWidgetData.name;
+                        }
 
                         if (typeof Serenity.PropertyGrid !== "undefined" && widget instanceof Serenity.PropertyGrid) {
                             if (widget.domDode?.classList.contains("s-LocalizationGrid")) {

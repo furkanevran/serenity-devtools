@@ -1,22 +1,29 @@
 import { useContext, useEffect, useState } from "react";
 import { WidgetListItem } from "./WidgetListItem";
-import { fetchWidgets, Widget } from "../utils/fetchWidgets";
+import { fetchWidgets } from "../utils/fetchWidgets";
 import { SelectedWidgetContext } from "../utils/SelectedWidgetContext";
 import { onMessage, removeMessageListener } from "../utils/port";
-import { MessageValue } from "@/utils/messageTypes";
+import { WidgetInfo } from "@/types/widgetType";
+import { MessageValue } from "@/types/messageTypes";
+
+const findActiveWidget = (data: WidgetInfo[], uniqueName?: string): WidgetInfo | null => {
+    if (!uniqueName) return null;
+    const active = data.find((widget) => widget.uniqueName === uniqueName);
+    if (active)
+        return active;
+
+    for (const widget of data) {
+        const child = findActiveWidget(widget.children, uniqueName);
+        if (child)
+            return child;
+    }
+
+    return null;
+}
 
 export function WidgetList() {
-    const [data, setData] = useState<Widget[]>([]);
+    const [data, setData] = useState<WidgetInfo[]>([]);
     const { selectedWidget, setSelectedWidget } = useContext(SelectedWidgetContext);
-
-    const setActive = (widget: Widget) => {
-        if (selectedWidget?.widgetData.domNodeSelector === widget.widgetData.domNodeSelector) {
-            setSelectedWidget(null);
-            return;
-        }
-
-        setSelectedWidget(widget);
-    }
 
     useEffect(() => {
         fetchWidgets(setData);
@@ -25,7 +32,7 @@ export function WidgetList() {
     }, []);
 
     useEffect(() => {
-        const activeWidget = data.find((widget) => widget.widgetData.domNodeSelector === selectedWidget?.widgetData.domNodeSelector);
+        const activeWidget = findActiveWidget(data, selectedWidget?.uniqueName);
         if (selectedWidget && !activeWidget) {
             setSelectedWidget(null);
         } else if (activeWidget) {
@@ -34,7 +41,7 @@ export function WidgetList() {
 
         const handleInspected = (message: MessageValue<"inspected">) => {
             if (!message.uniqueName) return;
-            const widget = data.find((widget) => widget.widgetData.uniqueName === message.uniqueName);
+            const widget = findActiveWidget(data, message.uniqueName);
             if (!widget) return;
             setSelectedWidget(widget);
         }
@@ -46,8 +53,7 @@ export function WidgetList() {
     return (
         <div className="h-100 overflow-y-auto">{
             data.map((widget) => (
-                <WidgetListItem key={widget.name} widget={widget}
-                    isSelected={widget.widgetData.domNodeSelector === selectedWidget?.widgetData.domNodeSelector} setActive={setActive} />
+                <WidgetListItem key={widget.name} widget={widget} />
             ))
         }</div>
     )
