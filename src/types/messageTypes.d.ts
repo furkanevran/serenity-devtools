@@ -15,12 +15,16 @@ export type MessageTypes = {
     "unhighlight": unknown;
     "open-source": {
         selector: string;
+        path?: (string | number)[];
     };
     "save-as-global-variable": {
         selector: string;
+        explicitName?: string;
+        noConsole?: boolean;
     };
     "open-source-response": {
         tempVarName: string;
+        path?: (string | number)[];
     };
     "inspected": {
         uniqueName: string;

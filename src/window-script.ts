@@ -1,5 +1,5 @@
 import { WindowMessageValues } from "./types/messageTypes";
-import { WidgetInfo } from "./types/widgetType";
+import { Widget, WidgetInfo } from "./types/widgetType";
 
 const Serenity = (globalThis as any)["Serenity"];
 
@@ -128,25 +128,35 @@ if (Serenity) {
                 return;
             }
 
-            const tempVarName = "temp";
-            let tempVarIndex = 1;
-            while ((window as any)[tempVarName + tempVarIndex]) {
-                tempVarIndex++;
+            let savedName = "";
+            if (event.data.name === "save-as-global-variable" && event.data.explicitName?.length) {
+                savedName = event.data.explicitName;
+                (window as any)[savedName] = tempVarValue;
             }
+            else {
+                const tempVarName = "temp";
+                let tempVarIndex = 1;
+                while ((window as any)[tempVarName + tempVarIndex]) {
+                    tempVarIndex++;
+                }
 
-            (window as any)[tempVarName + tempVarIndex] = tempVarValue;
+                savedName = tempVarName + tempVarIndex;
+                (window as any)[savedName] = tempVarValue;
+            }
 
             if (event.data.name === "open-source") {
                 window.postMessage({
                     name: 'open-source-response',
                     namespace: 'is.serenity.devtools',
-                    tempVarName: tempVarName + tempVarIndex
+                    tempVarName: savedName,
+                    path: event.data.path
                 } satisfies WindowMessageValues);
 
                 return;
             }
 
-            console.log(tempVarName + tempVarIndex, tempVarValue);
+            if (event.data.noConsole !== true)
+                console.log(savedName, tempVarValue);
         }
 
         if (event.data.name === 'highlight') {
@@ -272,9 +282,9 @@ if (Serenity) {
     }
 
     (globalThis as any).__SERENITY_DEVTOOLS__ = {
-        getWidgets: () => {
-            const widgetTree: WidgetInfo[] = [];
-            const queue: { nodes: Node[], parentWidget?: WidgetInfo }[] = [{ nodes: [document.documentElement] }];
+        getWidgets: (selectedSelector?: string) => {
+            const widgetTree: (WidgetInfo | Widget)[] = [];
+            const queue: { nodes: Node[], parentWidget?: (WidgetInfo | Widget) }[] = [{ nodes: [document.documentElement] }];
             const domNodeSelectors: Set<string> = new Set();
             const circularReplacer = getCircularReplacer();
 
@@ -290,41 +300,67 @@ if (Serenity) {
                     if (widget) {
                         const name: string = Serenity.getTypeFullName(Serenity.getInstanceType(widget)) ?? widget.constructor.name;
                         const currParentIdPrefix = parentWidget?.domNodeSelector && "#" + parentWidget.domNodeSelector;
-     
-                        /*const widgetData = JSON.parse(JSON.stringify(widget, circularReplacer));
-                        widgetData.domNodeSelector = getElSelector(node, domNodeSelectors);
-                        if (widget["value"]) {
-                            widgetData.value = JSON.parse(JSON.stringify(widget["value"], circularReplacer));
+                        let displayName = widget.domDode?.name;
+
+                        if (!(widget instanceof Serenity.Toolbar) && !(widget instanceof Serenity.QuickSearchInput)) {
+                            const gridField = widget.getGridField()?.el;
+                            if (gridField) {
+                                const caption = gridField.querySelector('.caption')?.cloneNode(true) as HTMLElement;
+                                if (caption)
+                                {
+                                    caption.querySelectorAll('sup').forEach(sup => sup.remove());
+                                    displayName = caption.textContent;
+                                }
+                                else
+                                    displayName = gridField.dataset?.itemname;
+                            }
                         }
 
-                        if (widget["selectedItem"]) {
-                            widgetData.selectedItem = JSON.parse(JSON.stringify(widget["selectedItem"], circularReplacer));
+                        if (parentWidget?.typeName === "QuickFilterBar") {
+                            const quickFilterLabel = widget.domNode?.closest('.quick-filter-item').querySelector(".quick-filter-label");
+                            if (quickFilterLabel) {
+                                displayName = quickFilterLabel.textContent;
+                            }
                         }
 
-                        if (widget["selectedItems"]) {
-                            widgetData.selectedItems = JSON.parse(JSON.stringify(widget["selectedItems"], circularReplacer));
-                        }
-
-                        if (typeof Serenity.TemplatedDialog !== "undefined" && widget instanceof Serenity.TemplatedDialog)
-                            widgetData.isDialog = true;
-
-
-                        if (typeof Serenity.EntityDialog !== "undefined" && widget instanceof Serenity.EntityDialog) {
-                            widgetData.isEntityDialog = true;
-                            widgetData.service = `~/Services/` + widget.getService();
-                            if (Serenity.resolveUrl)
-                                widgetData.service = Serenity.resolveUrl(widgetData.service);
-                        }
-*/
                         currentWidgetData = {
                             name,
-                            displayName: widget.domNode?.name ?? widget.getGridField()?.el?.dataset?.itemname,
+                            displayName: displayName,
                             domNodeSelector: getElSelector(node, domNodeSelectors),
                             typeName: widget.constructor.name,
                             uniqueName: widget.uniqueName,
                             children: [],
-                            parentIdPrefix: parentWidget?.uniqueName ?? ""
+                            parentIdPrefix: parentWidget?.uniqueName ?? "",
+                            isVisible: Serenity.Fluent(widget.domNode).isVisibleLike() ?? true
                         };
+
+                        if (selectedSelector == currentWidgetData.domNodeSelector) {
+                            const widgetData = JSON.parse(JSON.stringify(widget, circularReplacer));
+                            widgetData.domNodeSelector = getElSelector(node, domNodeSelectors);
+                            if (widget["value"]) {
+                                widgetData.value = JSON.parse(JSON.stringify(widget["value"], circularReplacer));
+                            }
+
+                            if (widget["selectedItem"]) {
+                                widgetData.selectedItem = JSON.parse(JSON.stringify(widget["selectedItem"], circularReplacer));
+                            }
+
+                            if (widget["selectedItems"]) {
+                                widgetData.selectedItems = JSON.parse(JSON.stringify(widget["selectedItems"], circularReplacer));
+                            }
+
+                            if (typeof Serenity.TemplatedDialog !== "undefined" && widget instanceof Serenity.TemplatedDialog)
+                                widgetData.isDialog = true;
+
+                            if (typeof Serenity.EntityDialog !== "undefined" && widget instanceof Serenity.EntityDialog) {
+                                widgetData.isEntityDialog = true;
+                                widgetData.service = `~/Services/` + widget.getService();
+                                if (Serenity.resolveUrl)
+                                    widgetData.service = Serenity.resolveUrl(widgetData.service);
+                            }
+
+                            (currentWidgetData as Widget).widgetData = widgetData;
+                        }
 
                         if (currParentIdPrefix && currentWidgetData.domNodeSelector && currentWidgetData.domNodeSelector.startsWith(currParentIdPrefix)) {
                             currentWidgetData.displayName ??= currentWidgetData.domNodeSelector.replace(currParentIdPrefix, '');

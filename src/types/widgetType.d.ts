@@ -6,6 +6,7 @@ export type WidgetInfo = {
     typeName: string;
     children: WidgetInfo[];
     parentIdPrefix: string;
+    isVisible: boolean;
 }
 
 export type Widget = {

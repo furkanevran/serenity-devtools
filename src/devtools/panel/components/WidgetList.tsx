@@ -26,10 +26,10 @@ export function WidgetList() {
     const { selectedWidget, setSelectedWidget } = useContext(SelectedWidgetContext);
 
     useEffect(() => {
-        fetchWidgets(setData);
-        const timer = setInterval(fetchWidgets, 1000, setData);
+        fetchWidgets(selectedWidget?.domNodeSelector ?? null, setData);
+        const timer = setInterval(fetchWidgets, 500, selectedWidget?.domNodeSelector ?? null, setData);
         return () => clearInterval(timer);
-    }, []);
+    }, [selectedWidget]);
 
     useEffect(() => {
         const activeWidget = findActiveWidget(data, selectedWidget?.uniqueName);
@@ -40,9 +40,13 @@ export function WidgetList() {
         }
 
         const handleInspected = (message: MessageValue<"inspected">) => {
-            if (!message.uniqueName) return;
+            if (!message.uniqueName)
+                return;
+
             const widget = findActiveWidget(data, message.uniqueName);
-            if (!widget) return;
+            if (!widget)
+                return;
+
             setSelectedWidget(widget);
         }
 
@@ -51,11 +55,12 @@ export function WidgetList() {
     }, [data]);
 
     return (
-        <div className="h-100 overflow-y-auto">{
-            data.map((widget) => (
-                <WidgetListItem key={widget.name} widget={widget} />
-            ))
-        }</div>
+        <div className="h-100 overflow-y-auto">
+            {
+                data.map((widget) => (
+                    <WidgetListItem key={widget.name} widget={widget} />
+                ))
+            }</div>
     )
 }
 

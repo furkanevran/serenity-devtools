@@ -4,8 +4,6 @@ import { MessageValues, WindowMessageValues } from './types/messageTypes';
 let bridgeConnection: browser.Runtime.Port | null = null;
 const messageQueue: WindowMessageValues[] = [];
 
-console.log('content-script loaded');
-
 const connect = function connectToBackgroundScript() {
     bridgeConnection = browser.runtime.connect({
         name: 'window-script'
@@ -20,11 +18,8 @@ const connect = function connectToBackgroundScript() {
     });
 
     bridgeConnection.onDisconnect.addListener(() => {
-        console.log('bridgeConnection disconnected, reconnecting...');
         connect();
     });
-
-    console.log('bridgeConnection connected, flushing messageQueue.... ', messageQueue.length);
 
     for (let msgIdx = 0; msgIdx < messageQueue.length; msgIdx++) {
         if (!bridgeConnection) {

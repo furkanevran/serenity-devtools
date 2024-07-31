@@ -28,6 +28,15 @@ const connect = function connectToBackgroundScript() {
     devtoolsPanelConnection.onMessage.addListener((message: MessageValues) => {
         console.log('devtoolsPanelConnection message', message);
 
+        if (message.name === "open-source-response") {
+            let pathStr = '.constructor';
+            if (message.path?.length) {
+                pathStr = message.path.reduce((acc, val) => acc + `[${JSON.stringify(val)}]`, '') as string;
+            }
+
+            devtools.inspectedWindow.eval(`inspect(window.${message.tempVarName}${pathStr}); delete window.${message.tempVarName};`);
+        }
+
         if (message.name && listeners && listeners[message.name] && listeners[message.name]!.length > 0) {
             listeners[message.name]!.forEach((listener) => listener(message as any));
         }
