@@ -3,23 +3,34 @@ import { SelectedWidgetContext } from '../utils/SelectedWidgetContext';
 import { useContext } from 'react';
 import { devtools } from 'webextension-polyfill';
 import { sendMessage } from '../utils/port';
-import { FaCode, FaCodeBranch, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaCode, FaCodeBranch, FaExternalLinkAlt, FaPlayCircle } from 'react-icons/fa';
 import { Widget } from '@/types/widgetType';
 
 const ActionButtonClass = "bg-blue-500 text-white p-2 w-full hover:bg-blue-600 active:bg-blue-700";
 
 const renderJSONValue = (widget: Widget, raw: any, _value: unknown, ...keyPath: KeyPath) => {
     if (typeof raw === "string") {
-        if (raw.startsWith("\"[Function: ") && raw.endsWith("]\"") && keyPath[keyPath.length - 2] === "widgetData")
-            return <span onClick={() => sendMessage({ name: "open-source", selector: widget.domNodeSelector, path: keyPath.toReversed().slice(2) })}
-                className="text-blue-500 cursor-pointer">{raw.slice(1, -1)} <FaCode className="inline ms-1" /></span>
+        if (raw.startsWith("\"[Function: ") && raw.endsWith("]\"") && keyPath[keyPath.length - 2] === "widgetData") {
+            return (<>
+                <span onClick={() => sendMessage({ name: "open-source", selector: widget.domNodeSelector, path: keyPath.toReversed().slice(2) })}
+                    className="text-blue-500 cursor-pointer">{raw.slice(1, -1)} <FaCode className="inline ms-1" /></span>
+                <FaCodeBranch onClick={() => sendMessage({ name: "save-as-global-variable", selector: widget.domNodeSelector, path: keyPath.toReversed().slice(2) })}
+                    className="inline ms-1 cursor-pointer" />
+                {raw.endsWith("()]\"") && <FaPlayCircle
+                    onClick={() => sendMessage({ name: "run-function", selector: widget.domNodeSelector, path: keyPath.toReversed().slice(2) })}
+                    className="inline ms-1 cursor-pointer" />}</>);
+        }
 
         if (raw.startsWith("\"[DOM Node]<") && raw.endsWith(">\""))
-            return (<span onClick={() => devtools.inspectedWindow.eval(`inspect(document.querySelector('${raw.slice(12, -2)}'))`)}
-                className="text-yellow-500 cursor-pointer">
-                {raw.slice(1, -1)}
-                <FaExternalLinkAlt className="text-blue-500 inline ms-1" />
-            </span>)
+            return (<>
+                <span onClick={() => devtools.inspectedWindow.eval(`inspect(document.querySelector('${raw.slice(12, -2)}'))`)}
+                    className="text-yellow-500 cursor-pointer">
+                    {raw.slice(1, -1)}
+                    <FaExternalLinkAlt className="text-blue-500 inline ms-1" />
+                </span>
+                <FaCodeBranch onClick={() => sendMessage({ name: "save-as-global-variable", selector: widget.domNodeSelector, path: keyPath.toReversed().slice(2) })}
+                    className="inline ms-1 cursor-pointer" />
+            </>)
     }
 
     return <span>{raw}</span>

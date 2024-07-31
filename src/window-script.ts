@@ -112,7 +112,7 @@ if (Serenity) {
             return;
         }
 
-        if (event.data.name === "save-as-global-variable" || event.data.name === "open-source") {
+        if (event.data.name === "save-as-global-variable" || event.data.name === "open-source" || event.data.name === "run-function") {
             const selector = event.data?.selector;
             if (!selector) {
                 return;
@@ -123,9 +123,23 @@ if (Serenity) {
                 return;
             }
 
-            const tempVarValue = Serenity.tryGetWidget(element);
+            let tempVarValue = Serenity.tryGetWidget(element);
+            const widgetRef = tempVarValue;
             if (!tempVarValue) {
                 return;
+            }
+
+            if (event.data.path?.length) {
+                const path = event.data.path;
+                for (let i = 0; i < path.length; i++) {
+                    tempVarValue = tempVarValue[path[i]];
+                    if (!tempVarValue) {
+                        return;
+                    }
+                }
+
+                if (typeof tempVarValue === "function")
+                    tempVarValue = tempVarValue.bind(widgetRef);
             }
 
             let savedName = "";
@@ -144,9 +158,9 @@ if (Serenity) {
                 (window as any)[savedName] = tempVarValue;
             }
 
-            if (event.data.name === "open-source") {
+            if (event.data.name === "open-source" || event.data.name === "run-function") {
                 window.postMessage({
-                    name: 'open-source-response',
+                    name: `${event.data.name}-response`,
                     namespace: 'is.serenity.devtools',
                     tempVarName: savedName,
                     path: event.data.path
@@ -306,8 +320,7 @@ if (Serenity) {
                             const gridField = widget.getGridField()?.el;
                             if (gridField) {
                                 const caption = gridField.querySelector('.caption')?.cloneNode(true) as HTMLElement;
-                                if (caption)
-                                {
+                                if (caption) {
                                     caption.querySelectorAll('sup').forEach(sup => sup.remove());
                                     displayName = caption.textContent;
                                 }
@@ -336,7 +349,7 @@ if (Serenity) {
 
                         if (selectedSelector == currentWidgetData.domNodeSelector) {
                             const widgetData = JSON.parse(JSON.stringify(widget, circularReplacer));
-                            widgetData.domNodeSelector = getElSelector(node, domNodeSelectors);
+
                             if (widget["value"]) {
                                 widgetData.value = JSON.parse(JSON.stringify(widget["value"], circularReplacer));
                             }
@@ -358,6 +371,35 @@ if (Serenity) {
                                 if (Serenity.resolveUrl)
                                     widgetData.service = Serenity.resolveUrl(widgetData.service);
                             }
+
+                            //get all functions of the widget
+                            const all = Object.getOwnPropertyNames(Object.getPrototypeOf(widget));
+                            all.forEach((name: string) => {
+                                if (name === "constructor")
+                                    return;
+
+                                if (widgetData[name])
+                                    return;
+
+                                const f = widget[name];
+                                if (typeof f === "function") {
+                                    const params = f.toString().match(/\(([^)]*)\)/)?.[1] ?? "";
+                                    widgetData[name] = `[Function: ${name}(${params})]`;
+                                    return;
+                                }
+
+                                if (typeof f === "object") {
+                                    widgetData[name] = JSON.parse(JSON.stringify(f, circularReplacer));
+                                    return;
+                                }
+
+                                if (f instanceof HTMLElement) {
+                                    widgetData[name] = "[DOM Node]<" + getElSelector(f, domNodeSelectors) + ">";
+                                    return;
+                                }
+
+                                widgetData[name] = f;
+                            });
 
                             (currentWidgetData as Widget).widgetData = widgetData;
                         }

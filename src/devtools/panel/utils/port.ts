@@ -1,5 +1,5 @@
-import {  MessageHandler, MessageHandlers, MessageKeys, MessageValues } from "@/types/messageTypes";
-import { devtools, runtime, Runtime} from "webextension-polyfill";
+import { MessageHandler, MessageHandlers, MessageKeys, MessageValues } from "@/types/messageTypes";
+import { devtools, runtime, Runtime } from "webextension-polyfill";
 
 let devtoolsPanelConnection: Runtime.Port | null = null;
 const messageQueue: MessageValues[] = [];
@@ -28,13 +28,17 @@ const connect = function connectToBackgroundScript() {
     devtoolsPanelConnection.onMessage.addListener((message: MessageValues) => {
         console.log('devtoolsPanelConnection message', message);
 
-        if (message.name === "open-source-response") {
-            let pathStr = '.constructor';
+        if (message.name === "open-source-response" || message.name === "run-function-response") {
+            let pathStr = '';
             if (message.path?.length) {
                 pathStr = message.path.reduce((acc, val) => acc + `[${JSON.stringify(val)}]`, '') as string;
             }
 
-            devtools.inspectedWindow.eval(`inspect(window.${message.tempVarName}${pathStr}); delete window.${message.tempVarName};`);
+            if (message.name === "open-source-response")
+                devtools.inspectedWindow.eval(`inspect(window.${message.tempVarName}.constructor); delete window.${message.tempVarName};`);
+
+            if (message.name === "run-function-response")
+                devtools.inspectedWindow.eval(`console.log(${JSON.stringify(pathStr)}, window.${message.tempVarName}()); delete window.${message.tempVarName};`);
         }
 
         if (message.name && listeners && listeners[message.name] && listeners[message.name]!.length > 0) {

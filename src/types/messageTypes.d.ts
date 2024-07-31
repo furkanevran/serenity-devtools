@@ -21,6 +21,7 @@ export type MessageTypes = {
         selector: string;
         explicitName?: string;
         noConsole?: boolean;
+        path?: (string | number)[];
     };
     "open-source-response": {
         tempVarName: string;
@@ -29,6 +30,14 @@ export type MessageTypes = {
     "inspected": {
         uniqueName: string;
     };
+    "run-function": {
+        selector: string;
+        path: (string | number)[];
+    };
+    "run-function-response": {
+        tempVarName: string;
+        path?: (string | number)[];
+    }
 };
 
 export type MessageKeys = keyof MessageTypes;
