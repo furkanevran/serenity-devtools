@@ -274,7 +274,8 @@ if (Serenity) {
             }
 
             if (typeof value === "function") {
-                return "[Function: " + (value.name || "anonymous") + "]";
+                const params = value.toString().match(/\(([^)]*)\)/)?.[1] ?? "";
+                return "[Function: " + (value.name || "anonymous") + "(" + params + ")]";
             }
 
             if (typeof value !== "object" || value === null) {

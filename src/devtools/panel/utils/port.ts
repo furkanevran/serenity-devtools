@@ -29,13 +29,16 @@ const connect = function connectToBackgroundScript() {
         console.log('devtoolsPanelConnection message', message);
 
         if (message.name === "open-source-response" || message.name === "run-function-response") {
+            
+            if (message.name === "open-source-response") {
+                devtools.inspectedWindow.eval(`inspect(window.${message.tempVarName}${!message.path?.length ? ".constructor" : ""}); delete window.${message.tempVarName};`);
+                return;
+            }
+            
             let pathStr = '';
             if (message.path?.length) {
                 pathStr = message.path.reduce((acc, val) => acc + `[${JSON.stringify(val)}]`, '') as string;
             }
-
-            if (message.name === "open-source-response")
-                devtools.inspectedWindow.eval(`inspect(window.${message.tempVarName}.constructor); delete window.${message.tempVarName};`);
 
             if (message.name === "run-function-response")
                 devtools.inspectedWindow.eval(`console.log(${JSON.stringify(pathStr)}, window.${message.tempVarName}()); delete window.${message.tempVarName};`);
