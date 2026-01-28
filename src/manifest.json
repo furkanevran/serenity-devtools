@@ -1,7 +1,12 @@
 {
     "manifest_version": 3,
-    "name": "Serenity DevTools",
+    "name": "Serenity Developer Tools",
     "version": "0.0.1",
+    "icons": {
+        "16": "devtools/devtools.png",
+        "48": "devtools/devtools.png",
+        "128": "devtools/devtools.png"
+    },
     "permissions": [
         "tabs",
         "scripting",
