@@ -61,17 +61,22 @@ export function WidgetList() {
       setSelectedWidget(activeWidget);
     } else if (!selectedWidget && !restoredRef.current && data.length > 0) {
       // Restore last selected widget on initial load
-      restoredRef.current = true;
       const storedUniqueName = localStorage.getItem("lastSelectedUniqueName");
+      console.log("Attempting to restore widget:", storedUniqueName, "data.length:", data.length);
       if (storedUniqueName) {
         const lastWidget = findActiveWidget(data, storedUniqueName);
+        console.log("Found last widget:", lastWidget);
         if (lastWidget) {
+          restoredRef.current = true; // Only mark restored if we found the widget
           setSelectedWidget(lastWidget);
           setTimeout(() => {
             const element = containerRef.current?.querySelector(`[data-unique-name="${CSS.escape(storedUniqueName)}"]`);
+            console.log("Scrolling to element:", element);
             element?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }, 100);
         }
+      } else {
+        restoredRef.current = true; // No stored widget, mark as restored
       }
     }
 
