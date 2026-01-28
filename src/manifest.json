@@ -1,6 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Serenity Developer Tools",
+    "description": "Developer tools for inspecting and debugging Serenity framework widgets, properties, and DOM elements.",
     "version": "0.0.1",
     "icons": {
         "16": "devtools/devtools.png",
