@@ -10,6 +10,10 @@ export function Panel() {
     const { selectedWidget, showOnlyVisible, setShowOnlyVisible } = useContext(SelectedWidgetContext);
 
     useEffect(() => {
+        onMessage("start-inspecting", () => {
+            setIsInspecting(true);
+        });
+
         onMessage("stop-inspecting", (_message) => {
             setIsInspecting(false);
         });
@@ -17,6 +21,16 @@ export function Panel() {
         onMessage("inspected", () => {
             setIsInspecting(false);
         });
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'x') {
+            e.preventDefault();
+            const newState = !isInspecting;
+            setIsInspecting(newState);
+        }};
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
     }, []);
 
     useEffect(() => {

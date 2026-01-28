@@ -4,7 +4,7 @@
   "private": true,
   "description": "Serenity DevTools Browser Extension",
   "author": "Furkan Evran",
-  "packageManager": "pnpm@9.5.0",
+  "packageManager": "pnpm@10.23.0",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -15,7 +15,7 @@
     "postinstall": "simple-git-hooks",
     "dev:chromium": "web-ext run --target=chromium --start-url=https://demo.serenity.is/Northwind/Order  --source-dir=./dist",
     "dev:firefox": "web-ext run --target=firefox-desktop --start-url=https://demo.serenity.is/Northwind/Order  --source-dir=./dist",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit --isolatedModules"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged"
@@ -28,32 +28,32 @@
     "packageExports": true
   },
   "devDependencies": {
-    "@parcel/config-webextension": "^2.12.0",
-    "@parcel/core": "^2.12.0",
-    "@parcel/transformer-js": "^2.12.0",
-    "@parcel/validator-typescript": "^2.12.0",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "@types/webextension-polyfill": "^0.10.7",
-    "buffer": "^5.5.0||^6.0.0",
-    "eslint": "^9.7.0",
-    "lint-staged": "^15.2.7",
-    "parcel": "^2.12.0",
-    "postcss": "^8.4.39",
+    "@parcel/config-webextension": "^2.16.3",
+    "@parcel/core": "^2.16.3",
+    "@parcel/transformer-js": "^2.16.3",
+    "@parcel/validator-typescript": "^2.16.3",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/chrome": "^0.1.36",
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3",
+    "buffer": "^6.0.3",
+    "eslint": "^9.39.2",
+    "lint-staged": "^16.2.7",
+    "parcel": "^2.16.3",
+    "postcss": "^8.5.6",
     "process": "^0.11.10",
-    "simple-git-hooks": "^2.11.1",
-    "tailwindcss": "^3.4.6",
+    "simple-git-hooks": "^2.13.1",
+    "tailwindcss": "^4.1.18",
     "tsc-files": "^1.1.4",
-    "typescript": "^5.5.4",
-    "typescript-eslint": "^7.17.0",
-    "web-ext": "^8.2.0",
-    "webextension-polyfill": "^0.12.0"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0",
+    "web-ext": "^9.2.0"
   },
   "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-icons": "^5.2.1",
-    "react-json-tree": "^0.19.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-icons": "^5.5.0",
+    "react-json-tree": "^0.20.0",
     "react-json-view": "^1.21.3"
   }
 }

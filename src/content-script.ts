@@ -1,11 +1,11 @@
-import browser from 'webextension-polyfill';
+// import browser from 'webextension-polyfill';
 import { MessageValues, WindowMessageValues } from './types/messageTypes';
 
-let bridgeConnection: browser.Runtime.Port | null = null;
+let bridgeConnection: chrome.runtime.Port | null = null;
 const messageQueue: WindowMessageValues[] = [];
 
 const connect = function connectToBackgroundScript() {
-    bridgeConnection = browser.runtime.connect({
+    bridgeConnection = chrome.runtime.connect({
         name: 'window-script'
     });
 
@@ -13,7 +13,7 @@ const connect = function connectToBackgroundScript() {
         name: 'init',
     } satisfies MessageValues);
 
-    bridgeConnection.onMessage.addListener((message) => {
+    bridgeConnection.onMessage.addListener((message: any) => {
         window.postMessage({ ...message, namespace: 'is.serenity.devtools/window-script' }, '*');
     });
 

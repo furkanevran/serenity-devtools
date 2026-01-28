@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { evalInInspectedWindow } from "./utils/devtoolsEval";
 import { Panel } from "./components/Panel";
 import { createRoot } from "react-dom/client";
-import { devtools } from "webextension-polyfill";
+
 import { FaExclamationTriangle, FaSpinner } from "react-icons/fa";
 import { DevtoolsContextProvider } from "./utils/SelectedWidgetContext";
 
@@ -26,8 +27,12 @@ function App() {
                 setHasSerenity(false);
                 return;
             }
+            
+            const [serenityAvailable, error] = await evalInInspectedWindow(`typeof window.Serenity !== "undefined"`);
+            if (error) {
+                 console.debug("Serenity check failed", error);
+            }
 
-            const [serenityAvailable] = await devtools.inspectedWindow.eval(`typeof window.Serenity !== "undefined"`);
             if (serenityAvailable) {
                 setHasSerenity(true);
                 return;
@@ -47,8 +52,8 @@ function App() {
             setHasSerenity(null);
         };
 
-        devtools.network.onNavigated.addListener(navigatedEventListener);
-        return () => devtools.network.onNavigated.removeListener(navigatedEventListener);
+        chrome.devtools.network.onNavigated.addListener(navigatedEventListener);
+        return () => chrome.devtools.network.onNavigated.removeListener(navigatedEventListener);
     }, []);
 
     return (

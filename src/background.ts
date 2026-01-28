@@ -1,11 +1,10 @@
-import browser from 'webextension-polyfill';
-import type { Runtime } from 'webextension-polyfill';
 
-const connections = new Map<number, Runtime.Port[]>(); // per tabId
+const connections = new Map<number, chrome.runtime.Port[]>(); // per tabId
 
 (async () => {
-    let activeTabId: number = (await browser.tabs.query({ active: true, currentWindow: true }))?.[0]?.id ?? 0;
-    browser.tabs.onActivated.addListener((activeInfo) => {
+    let activeTabId: number = (await new Promise<chrome.tabs.Tab[]>((resolve) => chrome.tabs.query({ active: true, currentWindow: true }, resolve)))?.[0]?.id ?? 0;
+    
+    chrome.tabs.onActivated.addListener((activeInfo) => {
         connections.get(activeTabId)?.forEach((port) => {
             port.postMessage({
                 name: 'deactivated'
@@ -24,33 +23,49 @@ const connections = new Map<number, Runtime.Port[]>(); // per tabId
         });
     });
 
-    browser.runtime.onInstalled.addListener(async () => {
-        const manifest = browser.runtime.getManifest();
+    chrome.runtime.onInstalled.addListener(async () => {
+        const manifest = chrome.runtime.getManifest();
 
-        for (const cs of manifest.content_scripts!) {
-            for (const tab of await browser.tabs.query({ url: cs.matches })) {
-                browser.scripting.executeScript({
-                    files: cs.js,
-                    target: { tabId: tab.id!, allFrames: cs.all_frames },
-                    injectImmediately: cs.run_at === 'document_start',
+        if (manifest.content_scripts) {
+            for (const cs of manifest.content_scripts) {
+                if (!cs.matches) continue;
+                
+                chrome.tabs.query({ url: cs.matches }, (tabs: chrome.tabs.Tab[]) => {
+                    for (const tab of tabs) {
+                         if (tab.id && cs.js) {
+                            chrome.scripting.executeScript({
+                                files: cs.js,
+                                target: { tabId: tab.id, allFrames: cs.all_frames },
+                                injectImmediately: cs.run_at === 'document_start',
+                            });
+                         }
+                    }
                 });
             }
         }
     });
 
-    browser.runtime.onConnect.addListener((port) => {
+    chrome.runtime.onConnect.addListener((port) => {
         const anyPort = port as any;
-        anyPort._timer = setInterval(() => disconnect(port), 30000);
+        
+        const resetTimer = () => {
+            if (anyPort._timer) clearTimeout(anyPort._timer);
+            anyPort._timer = setTimeout(() => disconnect(port), 250000); // 4+ minutes
+        }
+        
+        resetTimer();
 
         const deleteTimer = () => {
             if (!anyPort._timer)
                 return;
 
-            clearInterval(anyPort._timer);
+            clearTimeout(anyPort._timer);
             delete anyPort._timer;
         }
 
-        const extensionListener = (message: any, port: Runtime.Port) => {
+        const extensionListener = (message: any, port: chrome.runtime.Port) => {
+            resetTimer();
+            console.log("background", message, port, activeTabId);
             const tabId = message.tabId ?? port.sender?.tab?.id ?? activeTabId;
 
             if (message.name === "init") {
@@ -88,7 +103,7 @@ const connections = new Map<number, Runtime.Port[]>(); // per tabId
             });
         }
 
-        function disconnect(port: browser.Runtime.Port) {
+        function disconnect(port: chrome.runtime.Port) {
             port.onMessage.removeListener(extensionListener);
             port.onDisconnect.removeListener(disconnect);
 

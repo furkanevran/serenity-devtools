@@ -1,7 +1,7 @@
 import { MessageHandler, MessageHandlers, MessageKeys, MessageValues } from "@/types/messageTypes";
-import { devtools, runtime, Runtime } from "webextension-polyfill";
+import { evalInInspectedWindow } from "./devtoolsEval";
 
-let devtoolsPanelConnection: Runtime.Port | null = null;
+let devtoolsPanelConnection: chrome.runtime.Port | null = null;
 const messageQueue: MessageValues[] = [];
 const listeners: MessageHandlers = {};
 
@@ -10,13 +10,13 @@ const connect = function connectToBackgroundScript() {
         devtoolsPanelConnection.disconnect();
     }
 
-    devtoolsPanelConnection = runtime.connect({
+    devtoolsPanelConnection = chrome.runtime.connect({
         name: 'panel',
     });
 
     devtoolsPanelConnection.postMessage({
         name: 'init',
-        tabId: devtools.inspectedWindow.tabId,
+        tabId: chrome.devtools.inspectedWindow.tabId,
     });
 
     devtoolsPanelConnection.onDisconnect.addListener(() => {
@@ -25,13 +25,16 @@ const connect = function connectToBackgroundScript() {
         connect();
     });
 
-    devtoolsPanelConnection.onMessage.addListener((message: MessageValues) => {
+    devtoolsPanelConnection.onMessage.addListener((msg: unknown) => {
+        const message = msg as MessageValues;
         console.log('devtoolsPanelConnection message', message);
 
         if (message.name === "open-source-response" || message.name === "run-function-response") {
             
             if (message.name === "open-source-response") {
-                devtools.inspectedWindow.eval(`inspect(window.${message.tempVarName}${!message.path?.length ? ".constructor" : ""}); delete window.${message.tempVarName};`);
+                const expr = `inspect(window.${message.tempVarName}${!message.path?.length ? ".constructor" : ""}); delete window.${message.tempVarName};`;
+                console.log("Evaluating inspect:", expr);
+                evalInInspectedWindow(expr);
                 return;
             }
             
@@ -40,8 +43,10 @@ const connect = function connectToBackgroundScript() {
                 pathStr = message.path.reduce((acc, val) => acc + `[${JSON.stringify(val)}]`, '') as string;
             }
 
-            if (message.name === "run-function-response")
-                devtools.inspectedWindow.eval(`console.log(${JSON.stringify(pathStr)}, window.${message.tempVarName}()); delete window.${message.tempVarName};`);
+            if (message.name === "run-function-response") {
+                const expr = `console.log(${JSON.stringify(pathStr)}, window.${message.tempVarName}()); delete window.${message.tempVarName};`;
+                evalInInspectedWindow(expr);
+            }
         }
 
         if (message.name && listeners && listeners[message.name] && listeners[message.name]!.length > 0) {
@@ -65,12 +70,13 @@ connect();
 
 export const sendMessage = function sendMessageToBackgroundScript(message: MessageValues) {
     if (!devtoolsPanelConnection) {
+        console.log('devtoolsPanelConnection not connected, adding to queue', message);
         messageQueue.push(message);
         return;
     }
 
     console.log('sending message', message);
-    devtoolsPanelConnection.postMessage(message);
+    devtoolsPanelConnection.postMessage({ ...message, tabId: chrome.devtools.inspectedWindow.tabId });
 }
 
 export const onMessage = <T extends MessageKeys>(name: T, callback: MessageHandler<T>) => {
@@ -90,6 +96,6 @@ export const removeMessageListener = <T extends MessageKeys>(name: T, callback: 
     listeners[name as MessageKeys] = listeners[name as MessageKeys]!.filter((listener) => listener !== callback as MessageHandler<MessageKeys>);
 }
 
-devtools.network.onNavigated.addListener(() => {
+chrome.devtools.network.onNavigated.addListener(() => {
     connect();
 });

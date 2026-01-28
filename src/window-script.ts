@@ -16,6 +16,7 @@ if (Serenity) {
     highlightElement.style.pointerEvents = 'none';
 
     let hoveredUniqueName: string | null = null;
+    let isInspecting = false;
 
     const tryFindWidget = (el: HTMLElement) => {
         let widget = Serenity.tryGetWidget(el);
@@ -33,12 +34,16 @@ if (Serenity) {
     }
 
     const getVisibleHighlightElement = (widget: any) => {
-        let widgetEl = widget.element.el;
-        if (widgetEl?.classList.contains('select2-offscreen')) {
+        if (!widget) {
+            return null;
+        }
+
+        let widgetEl = widget.element?.el ?? widget.element?.[0] ?? widget.element ?? widget.domNode;
+        if (widgetEl instanceof HTMLElement && widgetEl.classList.contains('select2-offscreen')) {
             widgetEl = widgetEl.parentElement?.querySelector('.select2-container') ?? widgetEl.parentElement;
         }
 
-        return widgetEl;
+        return widgetEl instanceof HTMLElement ? widgetEl : null;
     }
 
     const getHighlightElement = (selector: string) => {
@@ -85,6 +90,12 @@ if (Serenity) {
     };
 
     const inspectClick = (e?: MouseEvent) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        }
+
         if (hoveredUniqueName) {
             window.postMessage({
                 name: 'inspected',
@@ -92,17 +103,12 @@ if (Serenity) {
                 uniqueName: hoveredUniqueName,
             } satisfies WindowMessageValues);
 
+            isInspecting = false;
             document.removeEventListener('mouseover', inpsectMouseOver);
             document.removeEventListener('mouseout', inpsectMouseOut);
             document.removeEventListener('mousedown', inspectClick);
             if (highlightElement.parentElement)
                 document.body.removeChild(highlightElement);
-
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-            }
         }
     };
 
@@ -138,7 +144,7 @@ if (Serenity) {
                     }
                 }
 
-                if (typeof tempVarValue === "function")
+                if (typeof tempVarValue === "function" && event.data.name !== "open-source")
                     tempVarValue = tempVarValue.bind(widgetRef);
             }
 
@@ -184,28 +190,20 @@ if (Serenity) {
                 return;
             }
 
-            const widget = Serenity.tryGetWidget(element);
-            if (!widget) {
-                return;
-            }
-
-            const widgetEl = getVisibleHighlightElement(widget);
-            if (!widgetEl) {
-                return;
-            }
+            const widgetEl = getVisibleHighlightElement(Serenity.tryGetWidget(element)) ?? element;
 
             const rect = widgetEl.getBoundingClientRect();
             highlightElement.style.top = `${rect.top}px`;
             highlightElement.style.left = `${rect.left}px`;
             highlightElement.style.width = `${rect.width}px`;
             highlightElement.style.height = `${rect.height}px`;
-
+            highlightElement.dataset.selector = selector;
             document.body.appendChild(highlightElement);
 
             document.body.addEventListener('mousemove', () => {
                 if (highlightElement.parentElement)
                     document.body.removeChild(highlightElement);
-            }, { once: true });
+            }, { once: true, passive: true });
         }
 
         if (event.data.name === 'unhighlight') {
@@ -214,58 +212,223 @@ if (Serenity) {
         }
 
         if (event.data.name === 'start-inspecting') {
+            isInspecting = true;
             document.addEventListener('mouseover', inpsectMouseOver);
             document.addEventListener('mouseout', inpsectMouseOut);
             document.addEventListener('mousedown', inspectClick);
         }
 
         if (event.data.name === 'stop-inspecting') {
+            isInspecting = false;
             document.removeEventListener('mouseover', inpsectMouseOver);
             document.removeEventListener('mouseout', inpsectMouseOut);
             document.removeEventListener('mousedown', inspectClick);
+            if (highlightElement.parentElement)
+                document.body.removeChild(highlightElement);
+        }
+
+        if (event.data.name === 'scroll-into-view') {
+            const selector = event.data?.selector;
+            if (!selector) return;
+            const element = getHighlightElement(selector);
+            if (!element) return;
+
+            ensureVisible(element);
+            element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+            
+            // Highlight momentarily
+            const widget = Serenity.tryGetWidget(element);
+            if (widget) {
+               const widgetEl = getVisibleHighlightElement(widget);
+               if (widgetEl) {
+                  const rect = widgetEl.getBoundingClientRect();
+                  highlightElement.style.top = `${rect.top}px`;
+                  highlightElement.style.left = `${rect.left}px`;
+                  highlightElement.style.width = `${rect.width}px`;
+                  highlightElement.style.height = `${rect.height}px`;
+                  document.body.appendChild(highlightElement);
+                  setTimeout(() => {
+                      if (highlightElement.parentElement) document.body.removeChild(highlightElement);
+                  }, 1500);
+               }
+            }
         }
     });
 
-    const getElSelector = (el: HTMLElement, usedSelectors?: Set<string>, suffixSelector?: string): string => {
-        let selector = '';
-        if (el.id) {
-            selector = `#${el.id}`;
-        } else {
-            if (el.classList.length) {
-                selector += `.${Array.from(el.classList).join('.')}`;
+    // Keyboard shortcut: Ctrl/Cmd+Shift+X to toggle inspecting
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'x') {
+            e.preventDefault();
+            if (isInspecting) {
+                isInspecting = false;
+                document.removeEventListener('mouseover', inpsectMouseOver);
+                document.removeEventListener('mouseout', inpsectMouseOut);
+                document.removeEventListener('mousedown', inspectClick);
+                if (highlightElement.parentElement)
+                    document.body.removeChild(highlightElement);
+                window.postMessage({
+                    name: 'stop-inspecting',
+                    namespace: 'is.serenity.devtools'
+                } satisfies WindowMessageValues);
+            } else {
+                isInspecting = true;
+                document.addEventListener('mouseover', inpsectMouseOver);
+                document.addEventListener('mouseout', inpsectMouseOut);
+                document.addEventListener('mousedown', inspectClick);
+                window.postMessage({
+                    name: 'start-inspecting',
+                    namespace: 'is.serenity.devtools'
+                } satisfies WindowMessageValues);
+            }
+        }
+    });
 
-                selector = el.tagName.toLowerCase() + selector;
+    // --- HELPER: TAB SWITCHER ---
+    function ensureVisible(element: Element) {
+        let current: Element | null = element;
+        let parentPane = null;
 
-                const name = el.getAttribute('name');
-                if (name) {
-                    selector += `[name="${name}"]`;
-                }
+        while (current && current !== document.body) {
+            if (current.classList.contains('tab-pane') && !current.classList.contains('active')) {
+                parentPane = current;
+                break;
+            }
+            if (current.parentElement) {
+                current = current.parentElement;
+            } else {
+                break;
             }
         }
 
-        if (suffixSelector && suffixSelector.length > 0)
-            selector += suffixSelector;
+        if (parentPane) {
+            const paneId = parentPane.id;
+            if (paneId) {
+                const selector = `a[href="#${paneId}"], button[data-bs-target="#${paneId}"], a[data-tabkey]`;
+                const tabLink = document.querySelector(`.nav-link[href="#${paneId}"]`) || document.querySelector(selector);
 
-        if (usedSelectors?.has(selector)) {
-            if (el.parentElement)
-                return getElSelector(el.parentElement!, usedSelectors, `>${selector}`);
+                if (tabLink && tabLink instanceof HTMLElement) {
+                    tabLink.click();
+                    return 300;
+                }
+            }
+        }
+        return 0;
+    }
 
-            return selector;
+    const getElSelector = (el: HTMLElement, usedSelectors: Set<string>, nodeSelectors: Map<Node, string>): string => {
+        if (nodeSelectors.has(el)) {
+            return nodeSelectors.get(el)!;
         }
 
-        usedSelectors?.add(selector);
+        const isUnique = (sel: string): boolean => {
+            try {
+                return document.querySelectorAll(sel).length === 1 && document.querySelector(sel) === el;
+            } catch {
+                return false;
+            }
+        };
+
+        const buildStep = (element: HTMLElement): string => {
+            const tag = element.tagName.toLowerCase();
+
+            if (element.id) {
+                const idSel = `#${CSS.escape(element.id)}`;
+                if (document.querySelectorAll(idSel).length === 1) {
+                    return idSel;
+                }
+            }
+
+            const uniqueAttrs = ['name', 'data-testid', 'data-id', 'data-field'];
+            for (const attr of uniqueAttrs) {
+                const val = element.getAttribute(attr);
+                if (val) {
+                    const attrSel = `${tag}[${attr}="${CSS.escape(val)}"]`;
+                    if (isUnique(attrSel)) {
+                        return attrSel;
+                    }
+                }
+            }
+
+            const significantClasses = Array.from(element.classList).filter(c =>
+                !c.startsWith('s-') ||
+                c.match(/^s-[A-Z]/)
+            ).slice(0, 3);
+
+            if (significantClasses.length > 0) {
+                return `${tag}.${significantClasses.map(c => CSS.escape(c)).join('.')}`;
+            }
+
+            return tag;
+        };
+
+        const getNthOfType = (element: HTMLElement): number => {
+            const parent = element.parentElement;
+            if (!parent) return 1;
+            const tag = element.tagName;
+            const siblings = Array.from(parent.children).filter(c => c.tagName === tag);
+            return siblings.indexOf(element) + 1;
+        };
+
+        const parts: string[] = [];
+        let current: HTMLElement | null = el;
+        const maxDepth = 10;
+        let depth = 0;
+
+        while (current && current !== document.body && current !== document.documentElement && depth < maxDepth) {
+            let step = buildStep(current);
+
+            if (step.startsWith('#')) {
+                parts.unshift(step);
+                break;
+            }
+
+            const testSelector = parts.length > 0 ? `${step} > ${parts.join(' > ')}` : step;
+            if (!isUnique(testSelector) && !usedSelectors.has(testSelector)) {
+                const nth = getNthOfType(current);
+                step = `${step}:nth-of-type(${nth})`;
+            }
+
+            parts.unshift(step);
+
+            const currentSelector = parts.join(' > ');
+            if (isUnique(currentSelector) && !usedSelectors.has(currentSelector)) {
+                break;
+            }
+
+            current = current.parentElement;
+            depth++;
+        }
+
+        let selector = parts.join(' > ');
+
+        if (!isUnique(selector) || usedSelectors.has(selector)) {
+            let parent = el.parentElement;
+            while (parent && parent !== document.body) {
+                const parentSel = nodeSelectors.get(parent);
+                if (parentSel) {
+                    const combined = `${parentSel} > ${selector}`;
+                    if (isUnique(combined) && !usedSelectors.has(combined)) {
+                        selector = combined;
+                        break;
+                    }
+                }
+                parent = parent.parentElement;
+            }
+        }
+
+        usedSelectors.add(selector);
+        nodeSelectors.set(el, selector);
         return selector;
     }
 
-    function getCircularReplacer(usedSelectors?: Set<string>) {
-        const ancestors: any = [];
+    function getCircularReplacer(usedSelectors: Set<string>, nodeSelectors: Map<Node, string>) {
+        const seen = new WeakSet();
         return function (key: string, value: any) {
             if (value instanceof Node) {
                 const val = "[DOM Node]";
                 if (value instanceof HTMLElement) {
-                    return val + `<${getElSelector(value, usedSelectors)}>`;
+                    return val + `<${getElSelector(value, usedSelectors, nodeSelectors)}>`;
                 }
-
                 return val;
             }
 
@@ -274,24 +437,17 @@ if (Serenity) {
             }
 
             if (typeof value === "function") {
-                const params = value.toString().match(/\(([^)]*)\)/)?.[1] ?? "";
-                return "[Function: " + (value.name || "anonymous") + "(" + params + ")]";
+                 const params = value.toString().match(/\(([^)]*)\)/)?.[1] ?? "";
+                 return "[Function: " + (value.name || "anonymous") + "(" + params + ")]";
             }
 
-            if (typeof value !== "object" || value === null) {
-                return value;
+            if (typeof value === "object" && value !== null) {
+                if (seen.has(value)) {
+                    return "[Circular]";
+                }
+                seen.add(value);
             }
 
-            // @ts-expect-error couldn't cast to any
-            while (ancestors.length > 0 && ancestors.at(-1) !== <any>this) {
-                ancestors.pop();
-            }
-
-            if (ancestors.includes(value)) {
-                return "[Circular]";
-            }
-
-            ancestors.push(value);
             return value;
         };
     }
@@ -301,7 +457,7 @@ if (Serenity) {
             const widgetTree: (WidgetInfo | Widget)[] = [];
             const queue: { nodes: Node[], parentWidget?: (WidgetInfo | Widget) }[] = [{ nodes: [document.documentElement] }];
             const domNodeSelectors: Set<string> = new Set();
-            const circularReplacer = getCircularReplacer();
+            const nodeSelectors: Map<Node, string> = new Map();
 
             while (queue.length) {
                 const { nodes, parentWidget } = queue.shift()!;
@@ -340,7 +496,7 @@ if (Serenity) {
                         currentWidgetData = {
                             name,
                             displayName: displayName,
-                            domNodeSelector: getElSelector(node, domNodeSelectors),
+                            domNodeSelector: getElSelector(node, domNodeSelectors, nodeSelectors),
                             typeName: widget.constructor.name,
                             uniqueName: widget.uniqueName,
                             children: [],
@@ -349,18 +505,18 @@ if (Serenity) {
                         };
 
                         if (selectedSelector == currentWidgetData.domNodeSelector) {
-                            const widgetData = JSON.parse(JSON.stringify(widget, circularReplacer));
+                            const widgetData = JSON.parse(JSON.stringify(widget, getCircularReplacer(domNodeSelectors, nodeSelectors)));
 
                             if (widget["value"]) {
-                                widgetData.value = JSON.parse(JSON.stringify(widget["value"], circularReplacer));
+                                widgetData.value = JSON.parse(JSON.stringify(widget["value"], getCircularReplacer(domNodeSelectors, nodeSelectors)));
                             }
 
                             if (widget["selectedItem"]) {
-                                widgetData.selectedItem = JSON.parse(JSON.stringify(widget["selectedItem"], circularReplacer));
+                                widgetData.selectedItem = JSON.parse(JSON.stringify(widget["selectedItem"], getCircularReplacer(domNodeSelectors, nodeSelectors)));
                             }
 
                             if (widget["selectedItems"]) {
-                                widgetData.selectedItems = JSON.parse(JSON.stringify(widget["selectedItems"], circularReplacer));
+                                widgetData.selectedItems = JSON.parse(JSON.stringify(widget["selectedItems"], getCircularReplacer(domNodeSelectors, nodeSelectors)));
                             }
 
                             if (typeof Serenity.TemplatedDialog !== "undefined" && widget instanceof Serenity.TemplatedDialog)
@@ -390,12 +546,12 @@ if (Serenity) {
                                 }
 
                                 if (typeof f === "object") {
-                                    widgetData[name] = JSON.parse(JSON.stringify(f, circularReplacer));
+                                    widgetData[name] = JSON.parse(JSON.stringify(f, getCircularReplacer(domNodeSelectors, nodeSelectors)));
                                     return;
                                 }
 
                                 if (f instanceof HTMLElement) {
-                                    widgetData[name] = "[DOM Node]<" + getElSelector(f, domNodeSelectors) + ">";
+                                    widgetData[name] = "[DOM Node]<" + getElSelector(f, domNodeSelectors, nodeSelectors) + ">";
                                     return;
                                 }
 
@@ -430,7 +586,7 @@ if (Serenity) {
                 }
             }
 
-            return JSON.stringify(widgetTree, circularReplacer);
+            return JSON.stringify(widgetTree, getCircularReplacer(domNodeSelectors, nodeSelectors));
         }
     };
 }

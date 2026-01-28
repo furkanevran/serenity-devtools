@@ -12,6 +12,9 @@ export type MessageTypes = {
     "highlight": {
         selector: string;
     };
+    "scroll-into-view": {
+        selector: string;
+    };
     "unhighlight": unknown;
     "open-source": {
         selector: string;

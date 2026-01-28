@@ -1,10 +1,10 @@
 import { JSONTree, KeyPath } from 'react-json-tree';
 import { SelectedWidgetContext } from '../utils/SelectedWidgetContext';
 import { useContext } from 'react';
-import { devtools } from 'webextension-polyfill';
 import { sendMessage } from '../utils/port';
-import { FaCode, FaCodeBranch, FaExternalLinkAlt, FaPlayCircle } from 'react-icons/fa';
+import { FaCode, FaCodeBranch, FaExternalLinkAlt, FaPlayCircle, FaEye } from 'react-icons/fa';
 import { Widget } from '@/types/widgetType';
+import { evalInInspectedWindow } from '../utils/devtoolsEval';
 
 const ActionButtonClass = "bg-blue-500 text-white p-2 w-full hover:bg-blue-600 active:bg-blue-700";
 
@@ -21,9 +21,12 @@ const renderJSONValue = (widget: Widget, raw: any, _value: unknown, ...keyPath: 
                     className="inline ms-1 cursor-pointer" />}</>);
         }
 
-        if (raw.startsWith("\"[DOM Node]<") && raw.endsWith(">\""))
+        if (raw.startsWith("\"[DOM Node]<") && raw.endsWith(">\"")) {
+            const selector = raw.slice(12, -2);
             return (<>
-                <span onClick={() => devtools.inspectedWindow.eval(`inspect(document.querySelector('${raw.slice(12, -2)}'))`)}
+                <span onClick={() => evalInInspectedWindow(`inspect(document.querySelector('${selector}'))`)}
+                    onMouseEnter={() => sendMessage({ name: "highlight", selector })}
+                    onMouseLeave={() => sendMessage({ name: "unhighlight" })}
                     className="text-yellow-500 cursor-pointer">
                     {raw.slice(1, -1)}
                     <FaExternalLinkAlt className="text-blue-500 inline ms-1" />
@@ -31,6 +34,7 @@ const renderJSONValue = (widget: Widget, raw: any, _value: unknown, ...keyPath: 
                 <FaCodeBranch onClick={() => sendMessage({ name: "save-as-global-variable", selector: widget.domNodeSelector, path: keyPath.toReversed().slice(2) })}
                     className="inline ms-1 cursor-pointer" />
             </>)
+        }
     }
 
     return <span>{raw}</span>
@@ -47,7 +51,8 @@ export function WidgetDetails() {
         <h1 className="text-xl">{selectedWidget.displayName}
             {(selectedWidget.name && selectedWidget.displayName != selectedWidget.name) && <span className="badge text-lg text-gray-400"> ({selectedWidget.name})</span>}</h1>
         <div className="flex gap-2 items-center justify-start">
-            <button className={ActionButtonClass} onClick={() => devtools.inspectedWindow.eval(`inspect(document.querySelector('${selectedWidget.domNodeSelector}'))`)}><FaExternalLinkAlt className="inline" /> Inspect DOM Node </button>
+            <button className={ActionButtonClass} onClick={() => evalInInspectedWindow(`inspect(document.querySelector('${selectedWidget.domNodeSelector}'))`)}><FaExternalLinkAlt className="inline" /> Inspect DOM Node </button>
+            <button className={ActionButtonClass} onClick={() => sendMessage({ name: "scroll-into-view", selector: selectedWidget.domNodeSelector })}><FaEye className="inline" /> Scroll Into View </button>
             <button className={ActionButtonClass} onClick={() => sendMessage({ name: "open-source", selector: selectedWidget.domNodeSelector })}><FaCode className="inline" /> View Code </button>
             <button className={ActionButtonClass} onClick={() => sendMessage({ name: "save-as-global-variable", selector: selectedWidget.domNodeSelector })}> <FaCodeBranch className="inline" /> Save as Global Variable </button>
         </div>
