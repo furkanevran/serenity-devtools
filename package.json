@@ -28,6 +28,7 @@
     "packageExports": true
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@parcel/config-webextension": "^2.16.3",
     "@parcel/core": "^2.16.3",
     "@parcel/transformer-js": "^2.16.3",
